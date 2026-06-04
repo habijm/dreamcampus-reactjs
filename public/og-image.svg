@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="50%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.15)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.05)"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <filter id="blur1">
+      <feGaussianBlur stdDeviation="60"/>
+    </filter>
+    <filter id="blur2">
+      <feGaussianBlur stdDeviation="40"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Decorative blobs -->
+  <circle cx="150" cy="150" r="200" fill="#3b82f6" opacity="0.15" filter="url(#blur1)"/>
+  <circle cx="1050" cy="480" r="250" fill="#0ea5e9" opacity="0.12" filter="url(#blur1)"/>
+  <circle cx="600" cy="630" r="180" fill="#6366f1" opacity="0.10" filter="url(#blur2)"/>
+
+  <!-- Grid texture -->
+  <defs>
+    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="white" stroke-width="0.5" opacity="0.06"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Logo area -->
+  <rect x="80" y="60" width="60" height="60" rx="16" fill="white" opacity="0.15"/>
+  <text x="110" y="100" font-family="serif" font-size="28" fill="white" text-anchor="middle" dominant-baseline="middle">🎓</text>
+
+  <!-- Brand name -->
+  <text x="158" y="82" font-family="'Arial Black', sans-serif" font-size="28" font-weight="900" fill="white">Dream</text>
+  <text x="272" y="82" font-family="'Arial Black', sans-serif" font-size="28" font-weight="900" fill="#60a5fa">Campus</text>
+  <text x="158" y="108" font-family="Arial, sans-serif" font-size="14" fill="rgba(255,255,255,0.6)" letter-spacing="2">PLATFORM REKOMENDASI KAMPUS IT</text>
+
+  <!-- Main headline -->
+  <text x="80" y="230" font-family="'Arial Black', sans-serif" font-size="64" font-weight="900" fill="white">Temukan Kampus IT</text>
+  <text x="80" y="310" font-family="'Arial Black', sans-serif" font-size="64" font-weight="900" fill="#60a5fa">Impianmu</text>
+
+  <!-- Subtitle -->
+  <text x="80" y="375" font-family="Arial, sans-serif" font-size="24" fill="rgba(255,255,255,0.75)">Rekomendasi kampus berbasis AI · Gratis · Tanpa daftar akun</text>
+
+  <!-- Feature chips -->
+  <rect x="80" y="420" width="220" height="44" rx="22" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  <text x="190" y="448" font-family="Arial, sans-serif" font-size="16" fill="white" text-anchor="middle">✦ Rekomendasi CBF</text>
+
+  <rect x="316" y="420" width="200" height="44" rx="22" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  <text x="416" y="448" font-family="Arial, sans-serif" font-size="16" fill="white" text-anchor="middle">⇄ Bandingkan Kampus</text>
+
+  <rect x="532" y="420" width="200" height="44" rx="22" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  <text x="632" y="448" font-family="Arial, sans-serif" font-size="16" fill="white" text-anchor="middle">📈 Prediksi Peluang</text>
+
+  <!-- Stats cards -->
+  <rect x="80" y="498" width="130" height="72" rx="14" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+  <text x="145" y="530" font-family="'Arial Black', sans-serif" font-size="28" font-weight="900" fill="white" text-anchor="middle">8+</text>
+  <text x="145" y="556" font-family="Arial, sans-serif" font-size="13" fill="rgba(255,255,255,0.65)" text-anchor="middle">Kampus IT</text>
+
+  <rect x="226" y="498" width="130" height="72" rx="14" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+  <text x="291" y="530" font-family="'Arial Black', sans-serif" font-size="28" font-weight="900" fill="white" text-anchor="middle">15+</text>
+  <text x="291" y="556" font-family="Arial, sans-serif" font-size="13" fill="rgba(255,255,255,0.65)" text-anchor="middle">Jurusan IT</text>
+
+  <rect x="372" y="498" width="130" height="72" rx="14" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+  <text x="437" y="530" font-family="'Arial Black', sans-serif" font-size="28" font-weight="900" fill="white" text-anchor="middle">1.2K+</text>
+  <text x="437" y="556" font-family="Arial, sans-serif" font-size="13" fill="rgba(255,255,255,0.65)" text-anchor="middle">Pencarian</text>
+
+  <!-- Right visual element -->
+  <rect x="780" y="140" width="340" height="350" rx="24" fill="url(#card)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+
+  <!-- Card content mockup -->
+  <rect x="806" y="168" width="56" height="56" rx="14" fill="rgba(255,255,255,0.2)"/>
+  <text x="834" y="201" font-family="serif" font-size="24" fill="white" text-anchor="middle">🏛</text>
+
+  <rect x="874" y="178" width="180" height="14" rx="7" fill="rgba(255,255,255,0.3)"/>
+  <rect x="874" y="202" width="120" height="10" rx="5" fill="rgba(255,255,255,0.15)"/>
+
+  <rect x="806" y="244" width="288" height="2" fill="rgba(255,255,255,0.1)"/>
+
+  <!-- Score bar mockup -->
+  <text x="806" y="272" font-family="Arial, sans-serif" font-size="12" fill="rgba(255,255,255,0.6)">Skor Kecocokan</text>
+  <text x="1070" y="272" font-family="'Arial Black', sans-serif" font-size="16" font-weight="900" fill="#34d399" text-anchor="end">92%</text>
+  <rect x="806" y="280" width="288" height="10" rx="5" fill="rgba(255,255,255,0.1)"/>
+  <rect x="806" y="280" width="265" height="10" rx="5" fill="#34d399"/>
+
+  <text x="806" y="316" font-family="Arial, sans-serif" font-size="12" fill="rgba(255,255,255,0.6)">Bidang IT</text>
+  <text x="1070" y="316" font-family="'Arial Black', sans-serif" font-size="16" font-weight="900" fill="#60a5fa" text-anchor="end">78%</text>
+  <rect x="806" y="324" width="288" height="10" rx="5" fill="rgba(255,255,255,0.1)"/>
+  <rect x="806" y="324" width="224" height="10" rx="5" fill="#60a5fa"/>
+
+  <text x="806" y="360" font-family="Arial, sans-serif" font-size="12" fill="rgba(255,255,255,0.6)">Lokasi</text>
+  <text x="1070" y="360" font-family="'Arial Black', sans-serif" font-size="16" font-weight="900" fill="#f59e0b" text-anchor="end">65%</text>
+  <rect x="806" y="368" width="288" height="10" rx="5" fill="rgba(255,255,255,0.1)"/>
+  <rect x="806" y="368" width="187" height="10" rx="5" fill="#f59e0b"/>
+
+  <!-- Badge tags -->
+  <rect x="806" y="405" width="68" height="26" rx="13" fill="rgba(96,165,250,0.25)" stroke="rgba(96,165,250,0.4)" stroke-width="1"/>
+  <text x="840" y="423" font-family="Arial, sans-serif" font-size="11" fill="#93c5fd" text-anchor="middle">AI</text>
+
+  <rect x="882" y="405" width="96" height="26" rx="13" fill="rgba(96,165,250,0.25)" stroke="rgba(96,165,250,0.4)" stroke-width="1"/>
+  <text x="930" y="423" font-family="Arial, sans-serif" font-size="11" fill="#93c5fd" text-anchor="middle">Data Science</text>
+
+  <rect x="986" y="405" width="84" height="26" rx="13" fill="rgba(96,165,250,0.25)" stroke="rgba(96,165,250,0.4)" stroke-width="1"/>
+  <text x="1028" y="423" font-family="Arial, sans-serif" font-size="11" fill="#93c5fd" text-anchor="middle">Cyber Sec</text>
+
+  <!-- URL watermark -->
+  <text x="1120" y="605" font-family="Arial, sans-serif" font-size="16" fill="rgba(255,255,255,0.4)" text-anchor="end">dreamcampus.vercel.app</text>
+</svg>

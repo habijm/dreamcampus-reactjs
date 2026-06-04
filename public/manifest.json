@@ -1,0 +1,17 @@
+{
+  "name": "DreamCampus - Rekomendasi Kampus IT",
+  "short_name": "DreamCampus",
+  "description": "Platform rekomendasi kampus IT terbaik untuk siswa SMA Indonesia. Gratis, personal, dan berbasis AI.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1d4ed8",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/favicon.svg",        "sizes": "any",     "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/apple-touch-icon.svg","sizes": "180x180", "type": "image/svg+xml" }
+  ],
+  "categories": ["education", "utilities"],
+  "lang": "id",
+  "dir": "ltr"
+}

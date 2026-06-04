@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Block admin area from indexing
+Disallow: /admin/
+Disallow: /admin/dashboard
+Disallow: /admin/kampus
+Disallow: /admin/jurusan
+Disallow: /admin/import
+Disallow: /admin/statistik
+Disallow: /admin/fitur
+
+# Sitemap
+Sitemap: https://dreamcampus.vercel.app/sitemap.xml
