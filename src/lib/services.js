@@ -177,3 +177,116 @@ export function getFeatureFlags() {
 export function setFeatureFlags(flags) {
   localStorage.setItem(FLAG_KEY, JSON.stringify(flags))
 }
+
+// ─── Ads & Announcements ───────────────────────────────────────────
+const ADS_KEY    = 'dc_ads'
+const NOTIF_KEY  = 'dc_notifications'
+
+export function getAds() {
+  try {
+    const stored = localStorage.getItem(ADS_KEY)
+    if (stored) return JSON.parse(stored)
+  } catch {}
+  return DEFAULT_ADS
+}
+
+export function setAds(ads) {
+  localStorage.setItem(ADS_KEY, JSON.stringify(ads))
+  window.dispatchEvent(new Event('dc-ads-changed'))
+}
+
+export function getNotifications() {
+  try {
+    const stored = localStorage.getItem(NOTIF_KEY)
+    if (stored) return JSON.parse(stored)
+  } catch {}
+  return DEFAULT_NOTIFICATIONS
+}
+
+export function setNotifications(notifs) {
+  localStorage.setItem(NOTIF_KEY, JSON.stringify(notifs))
+  window.dispatchEvent(new Event('dc-notif-changed'))
+}
+
+// Cek apakah notifikasi sudah di-dismiss user
+const DISMISSED_KEY = 'dc_dismissed_notifs'
+export function getDismissed() {
+  try { return JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]') } catch { return [] }
+}
+export function dismissNotification(id) {
+  const list = getDismissed()
+  if (!list.includes(id)) localStorage.setItem(DISMISSED_KEY, JSON.stringify([...list, id]))
+}
+
+// ─── Default data ──────────────────────────────────────────────────
+export const DEFAULT_ADS = [
+  {
+    id: 'ad-1',
+    title: 'Tryout SNBT Online Gratis',
+    description: 'Latihan soal UTBK lengkap dengan pembahasan. Persiapkan dirimu sekarang!',
+    url: 'https://example.com',
+    cta: 'Daftar Sekarang',
+    type: 'banner',          // 'banner' | 'card' | 'inline'
+    position: 'rekomendasi', // halaman yang ditampilkan: 'all' | 'rekomendasi' | 'kampus' | 'prediksi' | 'bandingkan'
+    active: true,
+    color: 'blue',           // 'blue' | 'purple' | 'emerald' | 'amber'
+  },
+  {
+    id: 'ad-2',
+    title: 'Beasiswa S1 Penuh 2025',
+    description: 'Daftarkan diri untuk program beasiswa IT senilai Rp 50 juta/tahun.',
+    url: 'https://example.com',
+    cta: 'Pelajari',
+    type: 'card',
+    position: 'kampus',
+    active: true,
+    color: 'emerald',
+  },
+  {
+    id: 'ad-3',
+    title: 'Kursus Pemrograman Python',
+    description: 'Mulai belajar coding dari nol dengan mentor berpengalaman.',
+    url: 'https://example.com',
+    cta: 'Mulai Belajar',
+    type: 'inline',
+    position: 'prediksi',
+    active: false,
+    color: 'purple',
+  },
+]
+
+export const DEFAULT_NOTIFICATIONS = [
+  {
+    id: 'notif-1',
+    title: '📅 Pendaftaran SNBT 2025 Dibuka',
+    message: 'Pendaftaran SNBT gelombang 1 dibuka mulai 1 Maret – 15 Maret 2025. Persiapkan dokumenmu!',
+    type: 'info',    // 'info' | 'warning' | 'success' | 'urgent'
+    position: 'all',
+    active: true,
+    dismissable: true,
+    link: '',
+    linkText: '',
+  },
+  {
+    id: 'notif-2',
+    title: '🎉 Database Kampus Diperbarui',
+    message: 'Kami baru menambahkan 3 kampus baru dengan program IT terkini.',
+    type: 'success',
+    position: 'kampus',
+    active: true,
+    dismissable: true,
+    link: '/kampus',
+    linkText: 'Lihat Kampus Baru',
+  },
+  {
+    id: 'notif-3',
+    title: '⚠️ Perhatian: Data Prediksi',
+    message: 'Data prediksi peluang bersifat estimasi. Selalu cek pengumuman resmi kampus.',
+    type: 'warning',
+    position: 'prediksi',
+    active: true,
+    dismissable: false,
+    link: '',
+    linkText: '',
+  },
+]

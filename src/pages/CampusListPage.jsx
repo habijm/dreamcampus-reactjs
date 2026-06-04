@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { CampusCard } from '@/components/campus/CampusCard'
+import { NotificationBar, AdBanner, AdInline } from '@/components/ads/AdsComponents'
 import { getCampuses } from '@/lib/services'
 import { PROVINCES, ACCREDITATION_OPTIONS } from '@/lib/mockData'
 import { Skeleton } from '@/components/ui/misc'
@@ -41,6 +42,8 @@ export default function CampusListPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-50/30 to-white">
+      <NotificationBar page="kampus" />
+      <AdBanner page="kampus" />
       {/* Header */}
       <div className="gradient-primary text-white py-12">
         <div className="container mx-auto px-4 text-center">
@@ -116,8 +119,18 @@ export default function CampusListPage() {
             <p className="text-muted-foreground">Coba ubah kata pencarian atau filter yang dipilih</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map(campus => <CampusCard key={campus.id} campus={campus} />)}
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filtered.slice(0, 6).map(campus => <CampusCard key={campus.id} campus={campus} />)}
+            </div>
+            {filtered.length > 6 && (
+              <>
+                <AdInline page="kampus" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {filtered.slice(6).map(campus => <CampusCard key={campus.id} campus={campus} />)}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

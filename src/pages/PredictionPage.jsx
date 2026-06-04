@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/misc'
 import { Separator } from '@/components/ui/misc'
+import { NotificationBar, AdBanner, AdCard } from '@/components/ads/AdsComponents'
 import { MAJOR_ADMISSION } from '@/lib/mockData'
 import { cn } from '@/lib/utils'
 
@@ -226,6 +227,8 @@ export default function PredictionPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-50/30 to-white">
+      <NotificationBar page="prediksi" />
+      <AdBanner page="prediksi" />
       {/* Header */}
       <div className="gradient-primary text-white py-12">
         <div className="container mx-auto px-4 text-center">
@@ -428,6 +431,7 @@ export default function PredictionPage() {
                 </Card>
 
                 {/* Bandingkan dengan jurusan lain */}
+                <AdCard page="prediksi" />
                 <Card className="border-blue-100/60">
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">

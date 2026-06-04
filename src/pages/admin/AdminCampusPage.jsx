@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Pencil, Trash2, Search, Upload, Building2, Globe, MapPin } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Upload, Building2, Globe, MapPin, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/components/ui/toast'
 import { getCampuses, createCampus, updateCampus, deleteCampus, uploadLogo } from '@/lib/services'
 import { PROVINCES, IT_FIELDS, ACCREDITATION_OPTIONS } from '@/lib/mockData'
+import { validateCampusInput, sanitizeText, isSafeUrl } from '@/lib/security'
 import { getAccreditationColor, cn } from '@/lib/utils'
 
 const EMPTY_FORM = {
@@ -55,6 +56,19 @@ function CampusFormDialog({ open, onClose, initialData, onSaved }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    // ── Security validation ──
+    const payload_pre = {
+      ...form,
+      min_tuition: Number(form.min_tuition) || 0,
+      max_tuition: Number(form.max_tuition) || 0,
+      established_year: Number(form.established_year) || null,
+      student_count: Number(form.student_count) || null,
+    }
+    const errors = validateCampusInput(payload_pre)
+    if (errors.length > 0) {
+      toast({ title: 'Validasi Gagal', description: errors[0], variant: 'destructive' })
+      return
+    }
     setSaving(true)
     try {
       let logo_url = form.logo_url
@@ -63,12 +77,13 @@ function CampusFormDialog({ open, onClose, initialData, onSaved }) {
         if (url) logo_url = url
       }
       const payload = {
-        ...form,
+        ...payload_pre,
+        name:        sanitizeText(form.name),
+        short_name:  sanitizeText(form.short_name),
+        location:    sanitizeText(form.location),
+        description: sanitizeText(form.description).slice(0, 1000),
+        website:     isSafeUrl(form.website) ? form.website : '',
         logo_url,
-        min_tuition: Number(form.min_tuition) || 0,
-        max_tuition: Number(form.max_tuition) || 0,
-        established_year: Number(form.established_year) || null,
-        student_count: Number(form.student_count) || null,
       }
       if (initialData?.id) {
         await updateCampus(initialData.id, payload)

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate, Outlet, Navigate } from 'react-router-dom'
 import {
   GraduationCap, LayoutDashboard, Building2, BookOpen,
-  BarChart3, LogOut, Menu, ChevronRight, Shield, Upload, Settings
+  BarChart3, LogOut, Menu, ChevronRight, Shield,
+  Upload, Settings, Megaphone
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -11,13 +12,29 @@ import { adminLogout, getAdminSession } from '@/lib/services'
 const USE_MOCK = !import.meta.env.VITE_SUPABASE_URL ||
   import.meta.env.VITE_SUPABASE_URL === 'your_supabase_project_url'
 
-const NAV_ITEMS = [
-  { href: '/admin/dashboard', label: 'Dashboard',         icon: LayoutDashboard },
-  { href: '/admin/kampus',    label: 'Manajemen Kampus',  icon: Building2 },
-  { href: '/admin/jurusan',   label: 'Manajemen Jurusan', icon: BookOpen },
-  { href: '/admin/import',    label: 'Import Data',       icon: Upload },
-  { href: '/admin/statistik', label: 'Statistik',         icon: BarChart3 },
-  { href: '/admin/fitur',     label: 'Pengaturan Fitur',  icon: Settings },
+const NAV_GROUPS = [
+  {
+    label: 'Utama',
+    items: [
+      { href: '/admin/dashboard', label: 'Dashboard',        icon: LayoutDashboard },
+    ]
+  },
+  {
+    label: 'Konten',
+    items: [
+      { href: '/admin/kampus',    label: 'Kampus',           icon: Building2 },
+      { href: '/admin/jurusan',   label: 'Jurusan',          icon: BookOpen },
+      { href: '/admin/import',    label: 'Import Data',      icon: Upload },
+    ]
+  },
+  {
+    label: 'Pengaturan',
+    items: [
+      { href: '/admin/iklan',     label: 'Iklan & Notifikasi', icon: Megaphone },
+      { href: '/admin/fitur',     label: 'Fitur',            icon: Settings },
+      { href: '/admin/statistik', label: 'Statistik',        icon: BarChart3 },
+    ]
+  },
 ]
 
 function NavItem({ item, collapsed, onClick }) {
@@ -29,10 +46,12 @@ function NavItem({ item, collapsed, onClick }) {
       onClick={onClick}
       className={cn(
         "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-        active ? 'gradient-primary text-white shadow-md' : 'text-slate-600 hover:bg-blue-50 hover:text-primary'
+        active
+          ? 'gradient-primary text-white shadow-md'
+          : 'text-slate-600 hover:bg-blue-50 hover:text-primary'
       )}
     >
-      <item.icon className={cn("w-5 h-5 flex-shrink-0", active ? 'text-white' : 'text-slate-500')} />
+      <item.icon className={cn("w-4 h-4 flex-shrink-0", active ? 'text-white' : 'text-slate-400')} />
       {!collapsed && <span>{item.label}</span>}
     </Link>
   )
@@ -77,6 +96,7 @@ export default function AdminLayout() {
 
   const SidebarContent = ({ onNavClick }) => (
     <div className="flex flex-col h-full">
+      {/* Logo */}
       <div className="p-4 border-b border-blue-100">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 gradient-primary rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
@@ -96,16 +116,29 @@ export default function AdminLayout() {
         </div>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map(item => (
-          <NavItem key={item.href} item={item} collapsed={collapsed} onClick={onNavClick} />
+      {/* Nav groups */}
+      <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
+        {NAV_GROUPS.map(group => (
+          <div key={group.label}>
+            {!collapsed && (
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-1.5">
+                {group.label}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {group.items.map(item => (
+                <NavItem key={item.href} item={item} collapsed={collapsed} onClick={onNavClick} />
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 
-      <div className="p-3 border-t border-blue-100 space-y-2">
+      {/* Bottom */}
+      <div className="p-3 border-t border-blue-100 space-y-1">
         <Button
           variant="ghost" size="sm" onClick={handleLogout}
-          className={cn("w-full text-red-500 hover:text-red-600 hover:bg-red-50 gap-2", collapsed && "px-2")}
+          className={cn("w-full text-red-500 hover:text-red-600 hover:bg-red-50 gap-2 justify-start", collapsed && "px-2")}
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
           {!collapsed && 'Keluar'}
@@ -121,9 +154,10 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex overflow-hidden">
+      {/* Desktop sidebar */}
       <aside className={cn(
         "hidden lg:flex flex-col bg-white border-r border-blue-100 transition-all duration-300 flex-shrink-0 relative",
-        collapsed ? 'w-16' : 'w-64'
+        collapsed ? 'w-16' : 'w-60'
       )}>
         <SidebarContent />
         <button
@@ -135,15 +169,17 @@ export default function AdminLayout() {
         </button>
       </aside>
 
+      {/* Mobile overlay */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="relative w-64 bg-white shadow-2xl z-10">
+          <aside className="relative w-60 bg-white shadow-2xl z-10">
             <SidebarContent onNavClick={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}
 
+      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="sticky top-0 z-40 bg-white border-b border-blue-100 h-14 flex items-center px-4 gap-3 flex-shrink-0">
           <button onClick={() => setMobileOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors">

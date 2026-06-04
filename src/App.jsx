@@ -21,6 +21,7 @@ import AdminMajorPage     from '@/pages/admin/AdminMajorPage'
 import AdminStatistikPage from '@/pages/admin/AdminStatistikPage'
 import AdminImportPage    from '@/pages/admin/AdminImportPage'
 import AdminFiturPage     from '@/pages/admin/AdminFiturPage'
+import AdminIklanPage     from '@/pages/admin/AdminIklanPage'
 
 function PublicLayout({ children }) {
   return (
@@ -40,7 +41,9 @@ function FeatureGate({ flag, children }) {
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
           <div className="text-6xl mb-4">🚧</div>
           <h2 className="font-display font-bold text-2xl mb-3">Fitur Sedang Tidak Tersedia</h2>
-          <p className="text-muted-foreground mb-6">Fitur ini sedang dinonaktifkan sementara oleh administrator.</p>
+          <p className="text-muted-foreground mb-6">
+            Fitur ini sedang dinonaktifkan sementara oleh administrator.
+          </p>
           <a href="/" className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors">
             Kembali ke Beranda
           </a>
@@ -55,7 +58,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public routes */}
+        {/* Public */}
         <Route path="/" element={<PublicLayout><LandingPage /></PublicLayout>} />
         <Route path="/kampus" element={<PublicLayout><CampusListPage /></PublicLayout>} />
         <Route path="/kampus/:id" element={<PublicLayout><CampusDetailPage /></PublicLayout>} />
@@ -70,7 +73,7 @@ export default function App() {
           <FeatureGate flag="prediksi"><PublicLayout><PredictionPage /></PublicLayout></FeatureGate>
         } />
 
-        {/* Admin routes */}
+        {/* Admin */}
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="dashboard"  element={<AdminDashboardPage />} />
@@ -79,6 +82,7 @@ export default function App() {
           <Route path="import"     element={<AdminImportPage />} />
           <Route path="statistik"  element={<AdminStatistikPage />} />
           <Route path="fitur"      element={<AdminFiturPage />} />
+          <Route path="iklan"      element={<AdminIklanPage />} />
         </Route>
 
         {/* 404 */}
