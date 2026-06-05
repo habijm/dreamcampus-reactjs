@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/misc'
 import { Progress } from '@/components/ui/misc'
 import { Separator } from '@/components/ui/misc'
 import { CampusCard } from '@/components/campus/CampusCard'
-import { NotificationBar, AdBanner, AdCard } from '@/components/ads/AdsComponents'
+import { NotificationBar, AdBanner, AdCard, AdInline } from '@/components/ads/AdsComponents'
 import { getCampuses, getMajors, logRecommendation } from '@/lib/services'
 import { getRecommendations, getRecommendationLabel } from '@/lib/recommendation'
 import { IT_FIELDS, PROVINCES, ACCREDITATION_OPTIONS, TUITION_RANGES } from '@/lib/mockData'
@@ -440,22 +440,24 @@ export default function RecommendationPage() {
                   </Card>
                 ) : (
                   <div className="space-y-5">
+                    {/* Ad inline di atas hasil */}
+                    <AdInline page="rekomendasi" />
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       {results.slice(0, 4).map((campus, i) => (
                         <RecommendationResultCard key={campus.id} campus={campus} rank={i + 1} />
                       ))}
                     </div>
 
-                    {/* Ad card after first 4 results */}
+                    {/* Ad card selalu tampil setelah baris pertama */}
+                    <AdCard page="rekomendasi" />
+
                     {results.length > 4 && (
-                      <>
-                        <AdCard page="rekomendasi" className="my-2" />
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                          {results.slice(4).map((campus, i) => (
-                            <RecommendationResultCard key={campus.id} campus={campus} rank={i + 5} />
-                          ))}
-                        </div>
-                      </>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        {results.slice(4).map((campus, i) => (
+                          <RecommendationResultCard key={campus.id} campus={campus} rank={i + 5} />
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { CampusCard } from '@/components/campus/CampusCard'
-import { NotificationBar, AdBanner, AdInline } from '@/components/ads/AdsComponents'
+import { NotificationBar, AdBanner, AdCard, AdInline } from '@/components/ads/AdsComponents'
 import { getCampuses } from '@/lib/services'
 import { PROVINCES, ACCREDITATION_OPTIONS } from '@/lib/mockData'
 import { Skeleton } from '@/components/ui/misc'
@@ -89,7 +89,7 @@ export default function CampusListPage() {
         </div>
 
         {/* Results count */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <p className="text-muted-foreground text-sm">
             Menampilkan <span className="font-semibold text-foreground">{filtered.length}</span> kampus
           </p>
@@ -99,6 +99,9 @@ export default function CampusListPage() {
             </Button>
           )}
         </div>
+
+        {/* Ad Card — tampil sebelum grid */}
+        <AdCard page="kampus" className="mb-6" />
 
         {/* Grid */}
         {loading ? (

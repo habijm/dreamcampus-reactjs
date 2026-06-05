@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/misc'
 import { Progress } from '@/components/ui/misc'
 import { getCampuses, getMajors } from '@/lib/services'
+import { NotificationBar, AdBanner, AdInline } from '@/components/ads/AdsComponents'
 import { formatCurrency, getAccreditationColor, cn } from '@/lib/utils'
 
 const MAX_CAMPUSES = 4
@@ -227,6 +228,8 @@ export default function ComparePage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-50/30 to-white">
+      <NotificationBar page="bandingkan" />
+      <AdBanner page="bandingkan" />
       {/* Hero */}
       <div className="gradient-primary text-white py-12">
         <div className="container mx-auto px-4 text-center">
@@ -337,6 +340,9 @@ export default function ComparePage() {
         {/* Comparison Table */}
         {selected.length >= 2 && (
           <div className="space-y-4">
+            {/* Ad inline di atas tabel perbandingan */}
+            <AdInline page="bandingkan" />
+
             {/* Score bar summary */}
             <Card className="border-blue-100/60">
               <CardContent className="p-5">

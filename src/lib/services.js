@@ -178,12 +178,97 @@ export function setFeatureFlags(flags) {
   localStorage.setItem(FLAG_KEY, JSON.stringify(flags))
 }
 
+
 // ─── Ads & Announcements ───────────────────────────────────────────
-const ADS_KEY    = 'dc_ads'
-const NOTIF_KEY  = 'dc_notifications'
+const ADS_KEY       = 'dc_ads'
+const NOTIF_KEY     = 'dc_notifications'
+const DISMISSED_KEY = 'dc_dismissed_notifs'
+
+// DEFAULT DATA harus di atas fungsi getter agar tidak undefined
+export const DEFAULT_ADS = [
+  {
+    id: 'ad-1',
+    title: 'Tryout SNBT Online Gratis',
+    description: 'Latihan soal UTBK lengkap dengan pembahasan. Persiapkan dirimu!',
+    url: 'https://example.com',
+    cta: 'Daftar Sekarang',
+    type: 'banner',
+    position: 'all',
+    active: true,
+    color: 'blue',
+  },
+  {
+    id: 'ad-2',
+    title: 'Beasiswa S1 Penuh 2025',
+    description: 'Program beasiswa IT senilai Rp 50 juta/tahun. Daftar sekarang!',
+    url: 'https://example.com',
+    cta: 'Pelajari',
+    type: 'card',
+    position: 'all',
+    active: true,
+    color: 'emerald',
+  },
+  {
+    id: 'ad-3',
+    title: 'Kursus Pemrograman Python',
+    description: 'Belajar coding dari nol dengan mentor berpengalaman.',
+    url: 'https://example.com',
+    cta: 'Mulai Belajar',
+    type: 'inline',
+    position: 'all',
+    active: true,
+    color: 'purple',
+  },
+]
+
+export const DEFAULT_NOTIFICATIONS = [
+  {
+    id: 'notif-1',
+    title: '\u{1F4C5} Pendaftaran SNBT 2025 Dibuka',
+    message: 'Pendaftaran SNBT gelombang 1 dibuka mulai 1 Maret \u2013 15 Maret 2025. Persiapkan dokumenmu!',
+    type: 'info',
+    position: 'all',
+    active: true,
+    dismissable: true,
+    link: '',
+    linkText: '',
+  },
+  {
+    id: 'notif-2',
+    title: '\u{1F389} Database Kampus Diperbarui',
+    message: 'Kami baru menambahkan 3 kampus baru dengan program IT terkini.',
+    type: 'success',
+    position: 'kampus',
+    active: true,
+    dismissable: true,
+    link: '/kampus',
+    linkText: 'Lihat Kampus Baru',
+  },
+  {
+    id: 'notif-3',
+    title: '\u26A0\uFE0F Perhatian: Data Prediksi',
+    message: 'Data prediksi peluang bersifat estimasi. Selalu cek pengumuman resmi kampus.',
+    type: 'warning',
+    position: 'prediksi',
+    active: true,
+    dismissable: false,
+    link: '',
+    linkText: '',
+  },
+]
+
+const ADS_VERSION = 'v3' // bump ini setiap ubah DEFAULT_ADS
+const ADS_VER_KEY = 'dc_ads_version'
 
 export function getAds() {
   try {
+    const storedVer = localStorage.getItem(ADS_VER_KEY)
+    // Jika versi berbeda → hapus cache lama, gunakan default baru
+    if (storedVer !== ADS_VERSION) {
+      localStorage.removeItem(ADS_KEY)
+      localStorage.setItem(ADS_VER_KEY, ADS_VERSION)
+      return DEFAULT_ADS
+    }
     const stored = localStorage.getItem(ADS_KEY)
     if (stored) return JSON.parse(stored)
   } catch {}
@@ -195,8 +280,18 @@ export function setAds(ads) {
   window.dispatchEvent(new Event('dc-ads-changed'))
 }
 
+const NOTIF_VERSION = 'v3'
+const NOTIF_VER_KEY = 'dc_notif_version'
+
 export function getNotifications() {
   try {
+    const storedVer = localStorage.getItem(NOTIF_VER_KEY)
+    if (storedVer !== NOTIF_VERSION) {
+      localStorage.removeItem(NOTIF_KEY)
+      localStorage.removeItem('dc_dismissed_notifs') // reset dismissed juga
+      localStorage.setItem(NOTIF_VER_KEY, NOTIF_VERSION)
+      return DEFAULT_NOTIFICATIONS
+    }
     const stored = localStorage.getItem(NOTIF_KEY)
     if (stored) return JSON.parse(stored)
   } catch {}
@@ -208,8 +303,6 @@ export function setNotifications(notifs) {
   window.dispatchEvent(new Event('dc-notif-changed'))
 }
 
-// Cek apakah notifikasi sudah di-dismiss user
-const DISMISSED_KEY = 'dc_dismissed_notifs'
 export function getDismissed() {
   try { return JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]') } catch { return [] }
 }
@@ -217,76 +310,3 @@ export function dismissNotification(id) {
   const list = getDismissed()
   if (!list.includes(id)) localStorage.setItem(DISMISSED_KEY, JSON.stringify([...list, id]))
 }
-
-// ─── Default data ──────────────────────────────────────────────────
-export const DEFAULT_ADS = [
-  {
-    id: 'ad-1',
-    title: 'Tryout SNBT Online Gratis',
-    description: 'Latihan soal UTBK lengkap dengan pembahasan. Persiapkan dirimu sekarang!',
-    url: 'https://example.com',
-    cta: 'Daftar Sekarang',
-    type: 'banner',          // 'banner' | 'card' | 'inline'
-    position: 'rekomendasi', // halaman yang ditampilkan: 'all' | 'rekomendasi' | 'kampus' | 'prediksi' | 'bandingkan'
-    active: true,
-    color: 'blue',           // 'blue' | 'purple' | 'emerald' | 'amber'
-  },
-  {
-    id: 'ad-2',
-    title: 'Beasiswa S1 Penuh 2025',
-    description: 'Daftarkan diri untuk program beasiswa IT senilai Rp 50 juta/tahun.',
-    url: 'https://example.com',
-    cta: 'Pelajari',
-    type: 'card',
-    position: 'kampus',
-    active: true,
-    color: 'emerald',
-  },
-  {
-    id: 'ad-3',
-    title: 'Kursus Pemrograman Python',
-    description: 'Mulai belajar coding dari nol dengan mentor berpengalaman.',
-    url: 'https://example.com',
-    cta: 'Mulai Belajar',
-    type: 'inline',
-    position: 'prediksi',
-    active: false,
-    color: 'purple',
-  },
-]
-
-export const DEFAULT_NOTIFICATIONS = [
-  {
-    id: 'notif-1',
-    title: '📅 Pendaftaran SNBT 2025 Dibuka',
-    message: 'Pendaftaran SNBT gelombang 1 dibuka mulai 1 Maret – 15 Maret 2025. Persiapkan dokumenmu!',
-    type: 'info',    // 'info' | 'warning' | 'success' | 'urgent'
-    position: 'all',
-    active: true,
-    dismissable: true,
-    link: '',
-    linkText: '',
-  },
-  {
-    id: 'notif-2',
-    title: '🎉 Database Kampus Diperbarui',
-    message: 'Kami baru menambahkan 3 kampus baru dengan program IT terkini.',
-    type: 'success',
-    position: 'kampus',
-    active: true,
-    dismissable: true,
-    link: '/kampus',
-    linkText: 'Lihat Kampus Baru',
-  },
-  {
-    id: 'notif-3',
-    title: '⚠️ Perhatian: Data Prediksi',
-    message: 'Data prediksi peluang bersifat estimasi. Selalu cek pengumuman resmi kampus.',
-    type: 'warning',
-    position: 'prediksi',
-    active: true,
-    dismissable: false,
-    link: '',
-    linkText: '',
-  },
-]

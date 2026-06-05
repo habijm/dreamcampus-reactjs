@@ -273,9 +273,15 @@ export default function AdminIklanPage() {
     setNotifsState(next); setNotifications(next)
   }
   function resetDefaults() {
+    // Hapus cache localStorage termasuk versi, supaya default fresh
+    localStorage.removeItem('dc_ads')
+    localStorage.removeItem('dc_ads_version')
+    localStorage.removeItem('dc_notifications')
+    localStorage.removeItem('dc_notif_version')
+    localStorage.removeItem('dc_dismissed_notifs')
     setAdsState(DEFAULT_ADS); setAds(DEFAULT_ADS)
     setNotifsState(DEFAULT_NOTIFICATIONS); setNotifications(DEFAULT_NOTIFICATIONS)
-    toast({ title: 'Reset', description: 'Data dikembalikan ke default' })
+    toast({ title: 'Reset', description: 'Cache & data dikembalikan ke default. Refresh halaman untuk melihat perubahan.' })
   }
 
   const activeAds   = ads.filter(a => a.active).length
