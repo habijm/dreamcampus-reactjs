@@ -15,6 +15,7 @@ import { getCampuses, getMajors, logRecommendation } from '@/lib/services'
 import { getRecommendations, getRecommendationLabel } from '@/lib/recommendation'
 import { IT_FIELDS, PROVINCES, ACCREDITATION_OPTIONS, TUITION_RANGES } from '@/lib/mockData'
 import { sanitizePreferences, checkRateLimit, getRateLimitRemaining } from '@/lib/security'
+import { usePagination, GridPerPageSelector, PaginationBar } from '@/hooks/usePagination'
 import { cn, getAccreditationColor } from '@/lib/utils'
 
 const DEGREE_OPTIONS = [
@@ -83,6 +84,73 @@ function RecommendationResultCard({ campus, rank }) {
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+// ─── RecommendationResults with per-page filter ───────────────────
+function RecommendationResults({ results, prefs }) {
+  const {
+    page, setPage, perPage, changePerPage,
+    totalItems, totalPages, pageData, start, end,
+  } = usePagination({ data: results, defaultPerPage: 6, storageKey: 'rekom-results' })
+
+  if (results.length === 0) {
+    return (
+      <Card className="border-dashed border-2 border-blue-200">
+        <CardContent className="py-16 text-center">
+          <Search className="w-12 h-12 text-blue-200 mx-auto mb-4" />
+          <h3 className="font-display font-semibold text-lg mb-2">Tidak Ada Hasil</h3>
+          <p className="text-muted-foreground text-sm">Coba perluas preferensimu untuk mendapatkan lebih banyak rekomendasi.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header + per-page */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="font-display font-bold text-xl">{results.length} Kampus Ditemukan</h2>
+          <p className="text-muted-foreground text-sm">Halaman {page}/{totalPages} · diurutkan skor tertinggi</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {prefs.itInterests?.length > 0 && (
+            <div className="hidden sm:flex flex-wrap gap-1">
+              {prefs.itInterests.slice(0, 2).map(f => <Badge key={f} variant="info" className="text-xs">{f}</Badge>)}
+              {prefs.itInterests.length > 2 && <Badge variant="secondary" className="text-xs">+{prefs.itInterests.length - 2}</Badge>}
+            </div>
+          )}
+          <GridPerPageSelector value={perPage} onChange={changePerPage} />
+        </div>
+      </div>
+
+      {/* Ad inline */}
+      <AdInline page="rekomendasi" />
+
+      {/* Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {pageData.slice(0, Math.ceil(perPage / 2)).map((campus, i) => (
+          <RecommendationResultCard key={campus.id} campus={campus} rank={start + i + 1} />
+        ))}
+      </div>
+
+      {/* Ad card midway */}
+      {pageData.length > Math.ceil(perPage / 2) && (
+        <>
+          <AdCard page="rekomendasi" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {pageData.slice(Math.ceil(perPage / 2)).map((campus, i) => (
+              <RecommendationResultCard key={campus.id} campus={campus} rank={start + Math.ceil(perPage / 2) + i + 1} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Pagination */}
+      <PaginationBar page={page} setPage={setPage} totalPages={totalPages}
+        totalItems={totalItems} start={start} end={end} />
+    </div>
   )
 }
 
@@ -410,58 +478,7 @@ export default function RecommendationPage() {
 
             {/* Results */}
             {hasSearched && !loading && (
-              <>
-                <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-                  <div>
-                    <h2 className="font-display font-bold text-xl">
-                      {results.length > 0 ? `${results.length} Kampus Ditemukan` : 'Tidak Ada Hasil'}
-                    </h2>
-                    <p className="text-muted-foreground text-sm">
-                      {results.length > 0 ? 'Diurutkan berdasarkan skor kecocokan tertinggi' : 'Coba ubah preferensimu'}
-                    </p>
-                  </div>
-                  {prefs.itInterests.length > 0 && (
-                    <div className="hidden sm:flex flex-wrap gap-1">
-                      {prefs.itInterests.slice(0, 2).map(f => (
-                        <Badge key={f} variant="info" className="text-xs">{f}</Badge>
-                      ))}
-                      {prefs.itInterests.length > 2 && <Badge variant="secondary" className="text-xs">+{prefs.itInterests.length - 2}</Badge>}
-                    </div>
-                  )}
-                </div>
-
-                {results.length === 0 ? (
-                  <Card className="border-dashed border-2 border-blue-200">
-                    <CardContent className="py-16 text-center">
-                      <Search className="w-12 h-12 text-blue-200 mx-auto mb-4" />
-                      <h3 className="font-display font-semibold text-lg mb-2">Tidak Ada Hasil</h3>
-                      <p className="text-muted-foreground text-sm">Coba perluas preferensimu untuk mendapatkan lebih banyak rekomendasi.</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-5">
-                    {/* Ad inline di atas hasil */}
-                    <AdInline page="rekomendasi" />
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      {results.slice(0, 4).map((campus, i) => (
-                        <RecommendationResultCard key={campus.id} campus={campus} rank={i + 1} />
-                      ))}
-                    </div>
-
-                    {/* Ad card selalu tampil setelah baris pertama */}
-                    <AdCard page="rekomendasi" />
-
-                    {results.length > 4 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        {results.slice(4).map((campus, i) => (
-                          <RecommendationResultCard key={campus.id} campus={campus} rank={i + 5} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
+              <RecommendationResults results={results} prefs={prefs} />
             )}
           </div>
         </div>

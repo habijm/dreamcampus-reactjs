@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils'
 
 const ALL_NAV = [
   { href: '/',            label: 'Beranda',    flag: null },
-   { href: '/kampus',      label: 'Kampus',     flag: null },
   { href: '/rekomendasi', label: 'Rekomendasi',flag: 'rekomendasi', icon: Sparkles },
+  { href: '/kampus',      label: 'Kampus',     flag: null },
   { href: '/bandingkan',  label: 'Bandingkan', flag: 'bandingkan',  icon: GitCompare },
   { href: '/prediksi',    label: 'Prediksi',   flag: 'prediksi',    icon: TrendingUp },
 ]

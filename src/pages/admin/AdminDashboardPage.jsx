@@ -89,6 +89,24 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
+      {/* Quick filter links to management pages */}
+      {!loading && (
+        <div className="flex flex-wrap gap-2">
+          <a href="/admin/kampus" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full border border-blue-200 hover:bg-blue-100 transition-colors font-medium">
+            🏛 Kelola {stats?.total_campuses || 0} Kampus
+          </a>
+          <a href="/admin/jurusan" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full border border-purple-200 hover:bg-purple-100 transition-colors font-medium">
+            📚 Kelola {stats?.total_majors || 0} Jurusan
+          </a>
+          <a href="/admin/import" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200 hover:bg-emerald-100 transition-colors font-medium">
+            📥 Import Data
+          </a>
+          <a href="/admin/iklan" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full border border-amber-200 hover:bg-amber-100 transition-colors font-medium">
+            📢 Kelola Iklan
+          </a>
+        </div>
+      )}
+
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from '@/components/ui/toast'
 import { getCampuses, getMajors, createMajor, updateMajor, deleteMajor } from '@/lib/services'
+import { usePagination, TablePerPageSelector, PaginationBar } from '@/hooks/usePagination'
 import { IT_FIELDS, ACCREDITATION_OPTIONS } from '@/lib/mockData'
 import { getAccreditationColor, cn } from '@/lib/utils'
 
@@ -143,8 +144,12 @@ export default function AdminMajorPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterCampus, setFilterCampus] = useState('all')
+  const [filterDegree, setFilterDegree] = useState('all')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
+
+  const { page, setPage, perPage, changePerPage, totalItems, totalPages, pageData, start, end } =
+    usePagination({ data: filtered, defaultPerPage: 10, storageKey: 'admin-major' })
 
   async function load() {
     setLoading(true)
@@ -166,8 +171,9 @@ export default function AdminMajorPage() {
     let result = [...majors]
     if (search) { const q = search.toLowerCase(); result = result.filter(m => m.name.toLowerCase().includes(q)) }
     if (filterCampus !== 'all') result = result.filter(m => m.campus_id === filterCampus)
+    if (filterDegree !== 'all') result = result.filter(m => m.degree === filterDegree)
     setFiltered(result)
-  }, [search, filterCampus, majors])
+  }, [search, filterCampus, filterDegree, majors])
 
   function openAdd() { setEditTarget(null); setDialogOpen(true) }
   function openEdit(major) { setEditTarget(major); setDialogOpen(true) }
@@ -192,19 +198,32 @@ export default function AdminMajorPage() {
 
       <Card className="border-blue-100/60">
         <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Cari jurusan..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Cari jurusan..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
             </div>
             <Select value={filterCampus} onValueChange={setFilterCampus}>
-              <SelectTrigger className="sm:w-56"><SelectValue placeholder="Filter kampus" /></SelectTrigger>
+              <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Kampus" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Kampus</SelectItem>
                 {campuses.map(c => <SelectItem key={c.id} value={c.id}>{c.short_name || c.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Badge variant="secondary" className="self-center">{filtered.length} jurusan</Badge>
+            <Select value={filterDegree} onValueChange={setFilterDegree}>
+              <SelectTrigger className="w-28 h-9"><SelectValue placeholder="Jenjang" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Jenjang</SelectItem>
+                <SelectItem value="D3">D3</SelectItem>
+                <SelectItem value="S1">S1</SelectItem>
+                <SelectItem value="S2">S2</SelectItem>
+                <SelectItem value="S3">S3</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-2 ml-auto">
+              <TablePerPageSelector value={perPage} onChange={changePerPage} />
+              <Badge variant="secondary" className="whitespace-nowrap">{filtered.length} jurusan</Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -226,7 +245,7 @@ export default function AdminMajorPage() {
                     {[...Array(6)].map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
                   </TableRow>
                 ))
-              ) : filtered.map(major => (
+              ) : pageData.map(major => (
                 <TableRow key={major.id} className="hover:bg-blue-50/30">
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -289,6 +308,12 @@ export default function AdminMajorPage() {
             </div>
           )}
         </CardContent>
+        {!loading && filtered.length > 0 && (
+          <div className="px-4 pb-4">
+            <PaginationBar page={page} setPage={setPage} totalPages={totalPages}
+              totalItems={totalItems} start={start} end={end} />
+          </div>
+        )}
       </Card>
 
       <MajorFormDialog

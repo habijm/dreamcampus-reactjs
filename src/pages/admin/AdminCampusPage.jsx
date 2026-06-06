@@ -16,6 +16,7 @@ import { toast } from '@/components/ui/toast'
 import { getCampuses, createCampus, updateCampus, deleteCampus, uploadLogo } from '@/lib/services'
 import { PROVINCES, IT_FIELDS, ACCREDITATION_OPTIONS } from '@/lib/mockData'
 import { validateCampusInput, sanitizeText, isSafeUrl } from '@/lib/security'
+import { usePagination, TablePerPageSelector, PaginationBar } from '@/hooks/usePagination'
 import { getAccreditationColor, cn } from '@/lib/utils'
 
 const EMPTY_FORM = {
@@ -231,8 +232,13 @@ export default function AdminCampusPage() {
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [accrFilter, setAccrFilter] = useState('any')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
+
+  const { page, setPage, perPage, changePerPage, totalItems, totalPages, pageData, start, end } =
+    usePagination({ data: filtered, defaultPerPage: 10, storageKey: 'admin-campus' })
 
   async function load() {
     setLoading(true)
@@ -245,10 +251,15 @@ export default function AdminCampusPage() {
   useEffect(() => { load() }, [])
 
   useEffect(() => {
-    if (!search) { setFiltered(campuses); return }
-    const q = search.toLowerCase()
-    setFiltered(campuses.filter(c => c.name.toLowerCase().includes(q) || c.location.toLowerCase().includes(q)))
-  }, [search, campuses])
+    let result = [...campuses]
+    if (search) {
+      const q = search.toLowerCase()
+      result = result.filter(c => c.name.toLowerCase().includes(q) || c.location.toLowerCase().includes(q) || c.short_name?.toLowerCase().includes(q))
+    }
+    if (typeFilter !== 'all') result = result.filter(c => c.type === typeFilter)
+    if (accrFilter !== 'any') result = result.filter(c => c.accreditation === accrFilter)
+    setFiltered(result)
+  }, [search, typeFilter, accrFilter, campuses])
 
   function openAdd() { setEditTarget(null); setDialogOpen(true) }
   function openEdit(campus) { setEditTarget(campus); setDialogOpen(true) }
@@ -273,12 +284,33 @@ export default function AdminCampusPage() {
 
       <Card className="border-blue-100/60">
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Cari kampus..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Cari kampus..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
             </div>
-            <Badge variant="secondary">{filtered.length} kampus</Badge>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Jenis" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Jenis</SelectItem>
+                <SelectItem value="Negeri">Negeri</SelectItem>
+                <SelectItem value="Swasta">Swasta</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={accrFilter} onValueChange={setAccrFilter}>
+              <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Akreditasi" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Semua Akreditasi</SelectItem>
+                <SelectItem value="Unggul">Unggul</SelectItem>
+                <SelectItem value="Baik Sekali">Baik Sekali</SelectItem>
+                <SelectItem value="A">A</SelectItem>
+                <SelectItem value="B">B</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-2 ml-auto">
+              <TablePerPageSelector value={perPage} onChange={changePerPage} />
+              <Badge variant="secondary" className="whitespace-nowrap">{filtered.length} kampus</Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -300,7 +332,7 @@ export default function AdminCampusPage() {
                     {[...Array(6)].map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
                   </TableRow>
                 ))
-              ) : filtered.map(campus => (
+              ) : pageData.map(campus => (
                 <TableRow key={campus.id} className="hover:bg-blue-50/30">
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -363,6 +395,12 @@ export default function AdminCampusPage() {
             </div>
           )}
         </CardContent>
+        {!loading && filtered.length > 0 && (
+          <div className="px-4 pb-4">
+            <PaginationBar page={page} setPage={setPage} totalPages={totalPages}
+              totalItems={totalItems} start={start} end={end} />
+          </div>
+        )}
       </Card>
 
       <CampusFormDialog
