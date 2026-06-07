@@ -30,6 +30,7 @@ export default function Footer() {
                 { href: '/', label: 'Beranda' },
                 { href: '/rekomendasi', label: 'Rekomendasi Kampus' },
                 { href: '/kampus', label: 'Semua Kampus' },
+                { href: '/jurusan', label: 'Info Jurusan IT' },
               ].map(link => (
                 <li key={link.href}>
                   <Link to={link.href} className="text-muted-foreground text-sm hover:text-primary transition-colors">

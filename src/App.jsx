@@ -12,6 +12,7 @@ import CampusListPage     from '@/pages/CampusListPage'
 import CampusDetailPage   from '@/pages/CampusDetailPage'
 import ComparePage        from '@/pages/ComparePage'
 import PredictionPage     from '@/pages/PredictionPage'
+import JurusanInfoPage    from '@/pages/JurusanInfoPage'
 
 // Admin pages
 import AdminLoginPage     from '@/pages/admin/AdminLoginPage'
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/" element={<PublicLayout><LandingPage /></PublicLayout>} />
         <Route path="/kampus" element={<PublicLayout><CampusListPage /></PublicLayout>} />
         <Route path="/kampus/:id" element={<PublicLayout><CampusDetailPage /></PublicLayout>} />
+        <Route path="/jurusan" element={<PublicLayout><JurusanInfoPage /></PublicLayout>} />  
 
         <Route path="/rekomendasi" element={
           <FeatureGate flag="rekomendasi"><PublicLayout><RecommendationPage /></PublicLayout></FeatureGate>
