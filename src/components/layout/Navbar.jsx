@@ -2,28 +2,41 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { GraduationCap, Menu, X, Sparkles, GitCompare, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getFeatureFlags } from '@/lib/services'
+import { DEFAULT_FLAGS, getFeatureFlags, subscribeFlags } from '@/lib/featureFlags'
 import { cn } from '@/lib/utils'
 
 const ALL_NAV = [
   { href: '/',            label: 'Beranda',    flag: null },
   { href: '/kampus',      label: 'Kampus',     flag: null },
-  { href: '/jurusan', label: 'Info Jurusan', flag: null},
-  { href: '/rekomendasi', label: 'Rekomendasi',flag: 'rekomendasi', icon: Sparkles },
+  { href: '/jurusan',     label: 'Jurusan',    flag: null },
+  { href: '/rekomendasi', label: 'Rekomendasi', flag: 'rekomendasi', icon: Sparkles },
   { href: '/bandingkan',  label: 'Bandingkan', flag: 'bandingkan',  icon: GitCompare },
   { href: '/prediksi',    label: 'Prediksi',   flag: 'prediksi',    icon: TrendingUp },
 ]
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [flags, setFlags]       = useState(getFeatureFlags())
+  const [flags, setFlags]       = useState(DEFAULT_FLAGS)
   const { pathname }            = useLocation()
 
-  // React to flag changes (from admin panel)
   useEffect(() => {
-    const sync = () => setFlags(getFeatureFlags())
-    window.addEventListener('feature-flags-changed', sync)
-    return () => window.removeEventListener('feature-flags-changed', sync)
+    let mounted = true
+
+    async function loadFlags() {
+      const currentFlags = await getFeatureFlags()
+      if (mounted) setFlags(currentFlags)
+    }
+
+    loadFlags()
+
+    const unsubscribe = subscribeFlags(nextFlags => {
+      if (mounted) setFlags({ ...DEFAULT_FLAGS, ...nextFlags })
+    })
+
+    return () => {
+      mounted = false
+      unsubscribe()
+    }
   }, [])
 
   const visibleLinks = ALL_NAV.filter(l => !l.flag || flags[l.flag])

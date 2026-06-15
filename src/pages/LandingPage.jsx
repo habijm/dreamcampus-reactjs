@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   ArrowRight, Sparkles, Building2, Award, Target, Brain,
   Shield, Globe, Smartphone, BarChart3, Palette, Network,
-  Search, Star, GitCompare, ChevronRight, Zap
+  Search, Star, GitCompare, ChevronRight, Zap, RefreshCw
 } from 'lucide-react'
 import { motion, useScroll, useTransform, useInView, useSpring, AnimatePresence } from 'framer-motion'
 import { gsap } from 'gsap'
@@ -40,20 +40,11 @@ const STATS = [
   { value: '7',     label: 'Bidang IT',   icon: Target },
 ]
 
-// ─── Reusable animation variants ───────────────────────────────────
 const fadeUp = {
   hidden:  { opacity: 0, y: 40 },
   visible: (i = 0) => ({
     opacity: 1, y: 0,
     transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: i * 0.1 }
-  }),
-}
-
-const fadeIn = {
-  hidden:  { opacity: 0 },
-  visible: (i = 0) => ({
-    opacity: 1,
-    transition: { duration: 0.6, ease: 'easeOut', delay: i * 0.08 }
   }),
 }
 
@@ -65,7 +56,6 @@ const scaleIn = {
   }),
 }
 
-// ─── Section header component ───────────────────────────────────────
 function SectionHeader({ badge, title, subtitle, light = false }) {
   const ref  = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-80px' })
@@ -98,7 +88,6 @@ function SectionHeader({ badge, title, subtitle, light = false }) {
   )
 }
 
-// ─── Animated counter ───────────────────────────────────────────────
 function AnimatedNumber({ value }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true })
@@ -119,7 +108,6 @@ function AnimatedNumber({ value }) {
   )
 }
 
-// ─── Floating particles ─────────────────────────────────────────────
 function Particles() {
   const particles = Array.from({ length: 18 }, (_, i) => ({
     id: i,
@@ -144,7 +132,6 @@ function Particles() {
   )
 }
 
-// ─── Skeleton campus card ───────────────────────────────────────────
 function SkeletonCampusCard() {
   return (
     <div className="rounded-2xl border border-blue-100 p-5 space-y-3">
@@ -163,21 +150,42 @@ function SkeletonCampusCard() {
   )
 }
 
-// ══════════════════════════════════════════════════════════════════════
-//  MAIN PAGE
+// ─── Empty Campus Section ──────────────────────────────────────────
+function EmptyCampusSection() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="w-24 h-24 rounded-2xl bg-blue-50 border-2 border-blue-100 flex items-center justify-center mb-6">
+        <Building2 className="w-12 h-12 text-blue-200" />
+      </div>
+      <h3 className="font-display font-semibold text-lg text-foreground mb-2">
+        Data Kampus Belum Tersedia
+      </h3>
+      <p className="text-muted-foreground text-sm max-w-xs leading-relaxed mb-6">
+        Database kampus sedang dipersiapkan. Silakan cek kembali beberapa saat lagi.
+      </p>
+      <div className="flex gap-3 flex-wrap justify-center">
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => window.location.reload()}>
+          <RefreshCw className="w-4 h-4" /> Muat Ulang
+        </Button>
+        <Button asChild variant="default" size="sm" className="gap-2">
+          <Link to="/kampus">Cek Halaman Kampus</Link>
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 // ══════════════════════════════════════════════════════════════════════
 export default function LandingPage() {
   const [campuses, setCampuses] = useState([])
   const [loading, setLoading]   = useState(true)
 
-  // Parallax
   const heroRef = useRef(null)
   const { scrollY } = useScroll()
   const heroY    = useTransform(scrollY, [0, 600], [0, -120])
   const heroBlobY = useTransform(scrollY, [0, 600], [0, 80])
   const heroOpacity = useTransform(scrollY, [0, 400], [1, 0])
 
-  // GSAP — horizontal marquee for IT fields section
   const marqueeRef = useRef(null)
 
   useEffect(() => {
@@ -187,7 +195,6 @@ export default function LandingPage() {
     })
   }, [])
 
-  // GSAP marquee scroll-linked
   useEffect(() => {
     if (!marqueeRef.current) return
     const ctx = gsap.context(() => {
@@ -205,7 +212,6 @@ export default function LandingPage() {
     return () => ctx.revert()
   }, [])
 
-  // GSAP — stagger reveal for steps section
   const stepsRef = useRef(null)
   useEffect(() => {
     if (!stepsRef.current) return
@@ -232,12 +238,7 @@ export default function LandingPage() {
 
       {/* ══════ HERO ══════════════════════════════════════════════════ */}
       <section ref={heroRef} className="relative min-h-[92vh] flex items-center overflow-hidden bg-[#f0f6ff]">
-
-        {/* Animated mesh background */}
-        <motion.div
-          style={{ y: heroBlobY }}
-          className="absolute inset-0 pointer-events-none"
-        >
+        <motion.div style={{ y: heroBlobY }} className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0"
             style={{
               background: `
@@ -249,7 +250,6 @@ export default function LandingPage() {
           />
         </motion.div>
 
-        {/* Floating orbs */}
         <motion.div
           style={{ y: useTransform(scrollY, [0, 600], [0, -60]) }}
           className="absolute top-24 right-[8%] w-80 h-80 bg-gradient-to-br from-blue-300/25 to-sky-400/15 rounded-full blur-3xl pointer-events-none"
@@ -265,7 +265,6 @@ export default function LandingPage() {
 
         <Particles />
 
-        {/* Grid texture overlay */}
         <div className="absolute inset-0 pointer-events-none opacity-[0.025]"
           style={{
             backgroundImage: 'linear-gradient(rgba(59,130,246,1) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,1) 1px, transparent 1px)',
@@ -273,13 +272,11 @@ export default function LandingPage() {
           }}
         />
 
-        {/* Hero content */}
         <motion.div
           style={{ y: heroY, opacity: heroOpacity }}
           className="container mx-auto px-4 relative z-10 py-24 md:py-32"
         >
           <div className="max-w-3xl mx-auto text-center">
-            {/* Badge */}
             <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -297,7 +294,6 @@ export default function LandingPage() {
               Sistem Rekomendasi Kampus IT · Content Based Filtering
             </motion.div>
 
-            {/* Headline */}
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -307,7 +303,6 @@ export default function LandingPage() {
               Temukan{' '}
               <span className="relative inline-block">
                 <span className="text-gradient">Kampus IT</span>
-                {/* Underline decoration */}
                 <motion.svg
                   viewBox="0 0 300 12" className="absolute -bottom-2 left-0 w-full"
                   initial={{ pathLength: 0, opacity: 0 }}
@@ -331,7 +326,6 @@ export default function LandingPage() {
               {' '}Impianmu
             </motion.h1>
 
-            {/* Subtitle */}
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -342,7 +336,6 @@ export default function LandingPage() {
               Dapatkan rekomendasi <strong className="text-slate-700">personal & gratis</strong> berdasarkan minat, lokasi, dan kemampuanmu.
             </motion.p>
 
-            {/* CTA Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -376,7 +369,6 @@ export default function LandingPage() {
             </motion.div>
           </div>
 
-          {/* Stat cards */}
           <motion.div
             initial="hidden"
             animate="visible"
@@ -406,7 +398,6 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
 
-        {/* Scroll indicator */}
         <motion.div
           className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2 }}
@@ -433,8 +424,6 @@ export default function LandingPage() {
             subtitle="Dari Web Dev hingga AI — temukan kampus yang sesuai passion-mu"
           />
         </div>
-
-        {/* Marquee strip */}
         <div className="relative overflow-hidden py-4">
           <div className="marquee-track flex gap-4 w-[200%]">
             {[...IT_FIELDS, ...IT_FIELDS].map(({ icon: Icon, label, bg, text, color }, i) => (
@@ -453,8 +442,6 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-
-        {/* Static grid for mobile / fallback */}
         <div className="container mx-auto px-4 mt-10">
           <div className="flex flex-wrap justify-center gap-3 md:hidden">
             {IT_FIELDS.map(({ icon: Icon, label, bg, text, color }) => (
@@ -471,7 +458,6 @@ export default function LandingPage() {
       <section ref={stepsRef} className="py-24 relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #e0f2fe 50%, #f0f9ff 100%)' }}
       >
-        {/* BG decoration */}
         <div className="absolute inset-0 pointer-events-none">
           <motion.div
             className="absolute top-10 left-[10%] w-64 h-64 bg-blue-200/20 rounded-full blur-3xl"
@@ -495,7 +481,6 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             {STEPS.map((step, i) => (
               <div key={step.step} className="step-card relative opacity-0">
-                {/* Connector line */}
                 {i < STEPS.length - 1 && (
                   <div className="hidden md:flex absolute top-12 left-full w-8 items-center justify-center z-10 -translate-x-1/2">
                     <ChevronRight className="w-6 h-6 text-blue-300" />
@@ -534,41 +519,48 @@ export default function LandingPage() {
               title="Kampus Unggulan IT"
               subtitle="Kampus-kampus terbaik dengan program IT berkualitas tinggi"
             />
-            <motion.div
-              whileHover={{ x: 4 }}
-              className="hidden sm:flex justify-center mt-2"
-            >
-              <Button asChild variant="outline" className="gap-1.5">
-                <Link to="/kampus">Lihat Semua Kampus <ArrowRight className="w-4 h-4" /></Link>
-              </Button>
-            </motion.div>
+            {!loading && campuses.length > 0 && (
+              <motion.div whileHover={{ x: 4 }} className="hidden sm:flex justify-center mt-2">
+                <Button asChild variant="outline" className="gap-1.5">
+                  <Link to="/kampus">Lihat Semua Kampus <ArrowRight className="w-4 h-4" /></Link>
+                </Button>
+              </motion.div>
+            )}
           </div>
 
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-60px' }}
-            variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
-          >
-            {loading
-              ? Array.from({ length: 6 }).map((_, i) => <SkeletonCampusCard key={i} />)
-              : campuses.map((campus, i) => (
+          {/* Campus grid or loading/empty state */}
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {Array.from({ length: 6 }).map((_, i) => <SkeletonCampusCard key={i} />)}
+            </div>
+          ) : campuses.length === 0 ? (
+            <EmptyCampusSection />
+          ) : (
+            <>
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-60px' }}
+                variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
+              >
+                {campuses.map((campus, i) => (
                   <motion.div key={campus.id} variants={scaleIn} custom={i}>
                     <CampusCard campus={campus} />
                   </motion.div>
-                ))
-            }
-          </motion.div>
+                ))}
+              </motion.div>
 
-          <motion.div
-            className="text-center mt-8 sm:hidden"
-            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-          >
-            <Button asChild variant="outline" className="gap-1.5">
-              <Link to="/kampus">Lihat Semua Kampus <ArrowRight className="w-4 h-4" /></Link>
-            </Button>
-          </motion.div>
+              <motion.div
+                className="text-center mt-8 sm:hidden"
+                initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+              >
+                <Button asChild variant="outline" className="gap-1.5">
+                  <Link to="/kampus">Lihat Semua Kampus <ArrowRight className="w-4 h-4" /></Link>
+                </Button>
+              </motion.div>
+            </>
+          )}
         </div>
       </section>
 
@@ -625,15 +617,10 @@ export default function LandingPage() {
 
       {/* ══════ FINAL CTA ═════════════════════════════════════════════ */}
       <section className="py-28 gradient-primary relative overflow-hidden">
-        {/* Animated rings */}
         {[200, 350, 500, 650].map((size, i) => (
           <motion.div key={size}
             className="absolute rounded-full border border-white/10 pointer-events-none"
-            style={{
-              width: size, height: size,
-              top: '50%', left: '50%',
-              x: '-50%', y: '-50%',
-            }}
+            style={{ width: size, height: size, top: '50%', left: '50%', x: '-50%', y: '-50%' }}
             animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.6, 0.3] }}
             transition={{ duration: 4 + i, repeat: Infinity, delay: i * 0.8, ease: 'easeInOut' }}
           />
@@ -660,10 +647,7 @@ export default function LandingPage() {
             <p className="text-blue-100/90 text-lg mb-10 max-w-md mx-auto leading-relaxed">
               Mulai sekarang secara gratis. Tidak perlu daftar akun.
             </p>
-            <motion.div
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.96 }}
-            >
+            <motion.div whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.96 }}>
               <Button asChild size="xl"
                 className="bg-white text-primary hover:bg-blue-50 shadow-2xl shadow-blue-900/30 gap-2 px-10 text-base font-bold">
                 <Link to="/rekomendasi">

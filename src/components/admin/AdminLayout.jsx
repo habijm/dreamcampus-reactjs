@@ -3,11 +3,12 @@ import { Link, useLocation, useNavigate, Outlet, Navigate } from 'react-router-d
 import {
   GraduationCap, LayoutDashboard, Building2, BookOpen,
   BarChart3, LogOut, Menu, ChevronRight, Shield,
-  Upload, Settings, Megaphone
+  Upload, Settings, Megaphone, Trash2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { adminLogout, getAdminSession } from '@/lib/services'
+import { getBinCount } from '@/lib/recycleBin'
 
 const USE_MOCK = !import.meta.env.VITE_SUPABASE_URL ||
   import.meta.env.VITE_SUPABASE_URL === 'your_supabase_project_url'
@@ -16,53 +17,77 @@ const NAV_GROUPS = [
   {
     label: 'Utama',
     items: [
-      { href: '/admin/dashboard', label: 'Dashboard',        icon: LayoutDashboard },
-    ]
+      { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    ],
   },
   {
     label: 'Konten',
     items: [
-      { href: '/admin/kampus',    label: 'Kampus',           icon: Building2 },
-      { href: '/admin/jurusan',   label: 'Jurusan',          icon: BookOpen },
-      { href: '/admin/import',    label: 'Import Data',      icon: Upload },
-    ]
+      { href: '/admin/kampus',  label: 'Kampus',      icon: Building2  },
+      { href: '/admin/jurusan', label: 'Jurusan',     icon: BookOpen   },
+      { href: '/admin/import',  label: 'Import Data', icon: Upload     },
+    ],
   },
   {
     label: 'Pengaturan',
     items: [
-      { href: '/admin/iklan',     label: 'Iklan & Notifikasi', icon: Megaphone },
-      { href: '/admin/fitur',     label: 'Fitur',            icon: Settings },
-      { href: '/admin/statistik', label: 'Statistik',        icon: BarChart3 },
-    ]
+      { href: '/admin/iklan',      label: 'Iklan & Notifikasi', icon: Megaphone  },
+      { href: '/admin/fitur',      label: 'Fitur',              icon: Settings   },
+      { href: '/admin/statistik',  label: 'Statistik',          icon: BarChart3  },
+    ],
+  },
+  {
+    label: 'Sistem',
+    items: [
+      { href: '/admin/recycle-bin', label: 'Recycle Bin', icon: Trash2, badge: true },
+    ],
   },
 ]
 
-function NavItem({ item, collapsed, onClick }) {
+// ─── Nav Item ──────────────────────────────────────────────────────
+function NavItem({ item, collapsed, binCount, onClick }) {
   const { pathname } = useLocation()
   const active = pathname === item.href
+
   return (
     <Link
       to={item.href}
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative',
         active
           ? 'gradient-primary text-white shadow-md'
           : 'text-slate-600 hover:bg-blue-50 hover:text-primary'
       )}
     >
-      <item.icon className={cn("w-4 h-4 flex-shrink-0", active ? 'text-white' : 'text-slate-400')} />
-      {!collapsed && <span>{item.label}</span>}
+      <item.icon className={cn('w-4 h-4 flex-shrink-0', active ? 'text-white' : 'text-slate-400')} />
+
+      {!collapsed && <span className="flex-1">{item.label}</span>}
+
+      {/* Badge: count untuk recycle bin */}
+      {item.badge && binCount > 0 && (
+        <span className={cn(
+          'flex items-center justify-center rounded-full text-xs font-bold leading-none',
+          collapsed
+            ? 'absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px]'
+            : 'min-w-[20px] h-5 px-1.5 bg-red-500 text-white'
+        )}>
+          {binCount > 99 ? '99+' : binCount}
+        </span>
+      )}
     </Link>
   )
 }
 
+// ══════════════════════════════════════════════════════════════════
 export default function AdminLayout() {
   const navigate = useNavigate()
   const [collapsed, setCollapsed]   = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [authState, setAuthState]   = useState('loading')
+  const [binCount, setBinCount]     = useState(0)
 
+  // ── Auth check ──
   useEffect(() => {
     async function checkAuth() {
       if (USE_MOCK) {
@@ -75,12 +100,21 @@ export default function AdminLayout() {
     checkAuth()
   }, [])
 
+  // ── Recycle bin count (sync dengan localStorage) ──
+  useEffect(() => {
+    function syncCount() { setBinCount(getBinCount()) }
+    syncCount()
+    window.addEventListener('dc-recycle-bin-changed', syncCount)
+    return () => window.removeEventListener('dc-recycle-bin-changed', syncCount)
+  }, [])
+
   async function handleLogout() {
     localStorage.removeItem('dc_admin')
     await adminLogout()
     navigate('/admin/login')
   }
 
+  // ── Loading state ──
   if (authState === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -94,6 +128,7 @@ export default function AdminLayout() {
 
   if (authState === 'unauth') return <Navigate to="/admin/login" replace />
 
+  // ── Sidebar content ──
   const SidebarContent = ({ onNavClick }) => (
     <div className="flex flex-col h-full">
       {/* Logo */}
@@ -127,24 +162,37 @@ export default function AdminLayout() {
             )}
             <div className="space-y-0.5">
               {group.items.map(item => (
-                <NavItem key={item.href} item={item} collapsed={collapsed} onClick={onNavClick} />
+                <NavItem
+                  key={item.href}
+                  item={item}
+                  collapsed={collapsed}
+                  binCount={binCount}
+                  onClick={onNavClick}
+                />
               ))}
             </div>
           </div>
         ))}
       </nav>
 
-      {/* Bottom */}
+      {/* Bottom actions */}
       <div className="p-3 border-t border-blue-100 space-y-1">
         <Button
-          variant="ghost" size="sm" onClick={handleLogout}
-          className={cn("w-full text-red-500 hover:text-red-600 hover:bg-red-50 gap-2 justify-start", collapsed && "px-2")}
+          variant="ghost" size="sm"
+          onClick={handleLogout}
+          className={cn(
+            'w-full text-red-500 hover:text-red-600 hover:bg-red-50 gap-2 justify-start',
+            collapsed && 'px-2'
+          )}
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
           {!collapsed && 'Keluar'}
         </Button>
         {!collapsed && (
-          <Link to="/" className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:bg-muted transition-colors">
+          <Link
+            to="/"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:bg-muted transition-colors"
+          >
             <ChevronRight className="w-3.5 h-3.5" />Lihat Website
           </Link>
         )}
@@ -154,38 +202,63 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex overflow-hidden">
-      {/* Desktop sidebar */}
+
+      {/* ── Desktop sidebar ── */}
       <aside className={cn(
-        "hidden lg:flex flex-col bg-white border-r border-blue-100 transition-all duration-300 flex-shrink-0 relative",
+        'hidden lg:flex flex-col bg-white border-r border-blue-100 transition-all duration-300 flex-shrink-0 relative',
         collapsed ? 'w-16' : 'w-60'
       )}>
         <SidebarContent />
+        {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="absolute left-full top-20 bg-white border border-blue-100 rounded-r-lg p-1.5 shadow-sm hover:bg-blue-50 transition-colors z-10"
           style={{ marginLeft: '-1px' }}
         >
-          <ChevronRight className={cn("w-3.5 h-3.5 text-blue-400 transition-transform", collapsed ? '' : 'rotate-180')} />
+          <ChevronRight className={cn(
+            'w-3.5 h-3.5 text-blue-400 transition-transform',
+            collapsed ? '' : 'rotate-180'
+          )} />
         </button>
       </aside>
 
-      {/* Mobile overlay */}
+      {/* ── Mobile overlay ── */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
           <aside className="relative w-60 bg-white shadow-2xl z-10">
             <SidebarContent onNavClick={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}
 
-      {/* Main */}
+      {/* ── Main content ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Top bar */}
         <header className="sticky top-0 z-40 bg-white border-b border-blue-100 h-14 flex items-center px-4 gap-3 flex-shrink-0">
-          <button onClick={() => setMobileOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors"
+          >
             <Menu className="w-5 h-5" />
           </button>
+
           <div className="flex-1" />
+
+          {/* Recycle bin indicator in header (mobile) */}
+          {binCount > 0 && (
+            <Link
+              to="/admin/recycle-bin"
+              className="flex items-center gap-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-full px-3 py-1.5 hover:bg-red-100 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{binCount} item di Recycle Bin</span>
+            </Link>
+          )}
+
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center">
               <Shield className="w-4 h-4 text-white" />
@@ -196,6 +269,8 @@ export default function AdminLayout() {
             </div>
           </div>
         </header>
+
+        {/* Page content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6">
           <div className="max-w-full"><Outlet /></div>
         </main>

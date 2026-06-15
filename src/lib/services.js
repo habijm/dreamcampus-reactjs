@@ -4,45 +4,105 @@ import { MOCK_CAMPUSES, MOCK_MAJORS, MOCK_STATS } from './mockData'
 export const USE_MOCK = !import.meta.env.VITE_SUPABASE_URL ||
   import.meta.env.VITE_SUPABASE_URL === 'your_supabase_project_url'
 
+// ─── Mock runtime state ────────────────────────────────────────────
+// Di mode mock, data disimpan di variabel ini (bukan konstanta impor)
+// sehingga operasi delete/create bisa benar-benar mengubah state.
+let _mockCampuses = [...MOCK_CAMPUSES]
+let _mockMajors   = [...MOCK_MAJORS]
+
+/** Reset mock data ke kondisi awal (untuk keperluan dev) */
+export function resetMockData() {
+  _mockCampuses = [...MOCK_CAMPUSES]
+  _mockMajors   = [...MOCK_MAJORS]
+}
+
 // ─── Campus ────────────────────────────────────────────────────────
 export async function getCampuses() {
-  if (USE_MOCK) return { data: MOCK_CAMPUSES, error: null }
+  if (USE_MOCK) return { data: [..._mockCampuses], error: null }
   const { data, error } = await supabase.from('campuses').select('*').order('name')
   return { data, error }
 }
+
 export async function getFeaturedCampuses() {
-  if (USE_MOCK) return { data: MOCK_CAMPUSES.filter(c => c.featured), error: null }
+  if (USE_MOCK) return { data: _mockCampuses.filter(c => c.featured), error: null }
   const { data, error } = await supabase.from('campuses').select('*').eq('featured', true).limit(6)
   return { data, error }
 }
+
 export async function getCampusById(id) {
   if (USE_MOCK) {
-    const campus = MOCK_CAMPUSES.find(c => c.id === id)
+    const campus = _mockCampuses.find(c => c.id === id)
     return { data: campus || null, error: campus ? null : { message: 'Not found' } }
   }
   const { data, error } = await supabase.from('campuses').select('*').eq('id', id).single()
   return { data, error }
 }
+
 export async function createCampus(campusData) {
-  if (USE_MOCK) return { data: { ...campusData, id: Date.now().toString() }, error: null }
+  if (USE_MOCK) {
+    const newCampus = { ...campusData, id: Date.now().toString(), created_at: new Date().toISOString() }
+    _mockCampuses = [..._mockCampuses, newCampus]
+    return { data: newCampus, error: null }
+  }
   const { data, error } = await supabase.from('campuses').insert(campusData).select().single()
   return { data, error }
 }
+
 export async function updateCampus(id, campusData) {
-  if (USE_MOCK) return { data: campusData, error: null }
+  if (USE_MOCK) {
+    _mockCampuses = _mockCampuses.map(c => c.id === id ? { ...c, ...campusData } : c)
+    return { data: campusData, error: null }
+  }
   const { data, error } = await supabase.from('campuses').update(campusData).eq('id', id).select().single()
   return { data, error }
 }
+
 export async function deleteCampus(id) {
-  if (USE_MOCK) return { error: null }
+  if (USE_MOCK) {
+    _mockCampuses = _mockCampuses.filter(c => c.id !== id)
+    _mockMajors   = _mockMajors.filter(m => m.campus_id !== id)
+    return { error: null }
+  }
   const { error } = await supabase.from('campuses').delete().eq('id', id)
   return { error }
+}
+
+/**
+ * Hapus SEMUA kampus beserta semua jurusan terkait.
+ * Mode mock: mengosongkan array runtime (tidak permanen, reset saat refresh).
+ * Mode Supabase: hapus semua baris via filter `id IS NOT NULL`.
+ */
+export async function deleteAllCampuses() {
+  if (USE_MOCK) {
+    _mockCampuses = []
+    _mockMajors   = []
+    return { error: null }
+  }
+  try {
+    // Hapus semua jurusan dulu (foreign key constraint)
+    const { error: majorErr } = await supabase
+      .from('majors')
+      .delete()
+      .not('id', 'is', null)
+    if (majorErr) return { error: majorErr }
+
+    // Hapus semua kampus
+    const { error: campusErr } = await supabase
+      .from('campuses')
+      .delete()
+      .not('id', 'is', null)
+    return { error: campusErr }
+  } catch (err) {
+    return { error: { message: err.message || 'Terjadi kesalahan tidak dikenal' } }
+  }
 }
 
 // ─── Majors ────────────────────────────────────────────────────────
 export async function getMajors(campusId = null) {
   if (USE_MOCK) {
-    const data = campusId ? MOCK_MAJORS.filter(m => m.campus_id === campusId) : MOCK_MAJORS
+    const data = campusId
+      ? _mockMajors.filter(m => m.campus_id === campusId)
+      : [..._mockMajors]
     return { data, error: null }
   }
   let query = supabase.from('majors').select('*, campuses(name, short_name)')
@@ -50,35 +110,67 @@ export async function getMajors(campusId = null) {
   const { data, error } = await query.order('name')
   return { data, error }
 }
+
 export async function createMajor(majorData) {
-  if (USE_MOCK) return { data: { ...majorData, id: Date.now().toString() }, error: null }
+  if (USE_MOCK) {
+    const newMajor = { ...majorData, id: Date.now().toString() }
+    _mockMajors = [..._mockMajors, newMajor]
+    return { data: newMajor, error: null }
+  }
   const { data, error } = await supabase.from('majors').insert(majorData).select().single()
   return { data, error }
 }
+
 export async function updateMajor(id, majorData) {
-  if (USE_MOCK) return { data: majorData, error: null }
+  if (USE_MOCK) {
+    _mockMajors = _mockMajors.map(m => m.id === id ? { ...m, ...majorData } : m)
+    return { data: majorData, error: null }
+  }
   const { data, error } = await supabase.from('majors').update(majorData).eq('id', id).select().single()
   return { data, error }
 }
+
 export async function deleteMajor(id) {
-  if (USE_MOCK) return { error: null }
+  if (USE_MOCK) {
+    _mockMajors = _mockMajors.filter(m => m.id !== id)
+    return { error: null }
+  }
   const { error } = await supabase.from('majors').delete().eq('id', id)
   return { error }
 }
 
-// ─── Stats (real data from DB, fallback computed mock) ─────────────
+/**
+ * Hapus SEMUA jurusan dari semua kampus.
+ * Mode mock: mengosongkan array runtime jurusan.
+ * Mode Supabase: hapus semua baris via filter `id IS NOT NULL`.
+ */
+export async function deleteAllMajors() {
+  if (USE_MOCK) {
+    _mockMajors = []
+    return { error: null }
+  }
+  try {
+    const { error } = await supabase
+      .from('majors')
+      .delete()
+      .not('id', 'is', null)
+    return { error }
+  } catch (err) {
+    return { error: { message: err.message || 'Terjadi kesalahan tidak dikenal' } }
+  }
+}
+
+// ─── Stats ─────────────────────────────────────────────────────────
 export async function getDashboardStats() {
   if (USE_MOCK) return { data: MOCK_STATS, error: null }
 
-  const [campusRes, majorRes, logRes, campuses, majors] = await Promise.all([
+  const [campusRes, majorRes, logRes, campuses] = await Promise.all([
     supabase.from('campuses').select('id', { count: 'exact', head: true }),
     supabase.from('majors').select('id',   { count: 'exact', head: true }),
     supabase.from('recommendations_log').select('id', { count: 'exact', head: true }),
     supabase.from('campuses').select('short_name, id'),
-    supabase.from('majors').select('campus_id'),
   ])
 
-  // Top recommended dari log
   const { data: topData } = await supabase
     .from('recommendations_log')
     .select('top_campus_id')
@@ -92,7 +184,6 @@ export async function getDashboardStats() {
     .map(([id, count]) => ({ name: campusMap[id] || id, count }))
     .sort((a, b) => b.count - a.count).slice(0, 5)
 
-  // IT interests dari log
   const { data: logDetail } = await supabase
     .from('recommendations_log').select('it_interests').limit(500)
   const itCount = {}
@@ -101,7 +192,6 @@ export async function getDashboardStats() {
     .map(([field, count]) => ({ field: field.replace(' Development', ' Dev'), count }))
     .sort((a, b) => b.count - a.count).slice(0, 7)
 
-  // Monthly dari log
   const { data: monthly } = await supabase
     .from('recommendations_log').select('created_at').order('created_at')
   const monthMap = {}
@@ -163,7 +253,7 @@ export async function uploadLogo(file, campusId) {
   return { url: data.publicUrl, error: null }
 }
 
-// ─── Feature flags (localStorage-based) ───────────────────────────
+// ─── Feature flags ─────────────────────────────────────────────────
 const FLAG_KEY = 'dc_feature_flags'
 
 export function getFeatureFlags() {
@@ -178,13 +268,11 @@ export function setFeatureFlags(flags) {
   localStorage.setItem(FLAG_KEY, JSON.stringify(flags))
 }
 
-
-// ─── Ads & Announcements ───────────────────────────────────────────
+// ─── Ads & Notifications ───────────────────────────────────────────
 const ADS_KEY       = 'dc_ads'
 const NOTIF_KEY     = 'dc_notifications'
 const DISMISSED_KEY = 'dc_dismissed_notifs'
 
-// DEFAULT DATA harus di atas fungsi getter agar tidak undefined
 export const DEFAULT_ADS = [
   {
     id: 'ad-1',
@@ -257,13 +345,12 @@ export const DEFAULT_NOTIFICATIONS = [
   },
 ]
 
-const ADS_VERSION = 'v3' // bump ini setiap ubah DEFAULT_ADS
+const ADS_VERSION = 'v3'
 const ADS_VER_KEY = 'dc_ads_version'
 
 export function getAds() {
   try {
     const storedVer = localStorage.getItem(ADS_VER_KEY)
-    // Jika versi berbeda → hapus cache lama, gunakan default baru
     if (storedVer !== ADS_VERSION) {
       localStorage.removeItem(ADS_KEY)
       localStorage.setItem(ADS_VER_KEY, ADS_VERSION)
@@ -288,7 +375,7 @@ export function getNotifications() {
     const storedVer = localStorage.getItem(NOTIF_VER_KEY)
     if (storedVer !== NOTIF_VERSION) {
       localStorage.removeItem(NOTIF_KEY)
-      localStorage.removeItem('dc_dismissed_notifs') // reset dismissed juga
+      localStorage.removeItem('dc_dismissed_notifs')
       localStorage.setItem(NOTIF_VER_KEY, NOTIF_VERSION)
       return DEFAULT_NOTIFICATIONS
     }
@@ -306,6 +393,7 @@ export function setNotifications(notifs) {
 export function getDismissed() {
   try { return JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]') } catch { return [] }
 }
+
 export function dismissNotification(id) {
   const list = getDismissed()
   if (!list.includes(id)) localStorage.setItem(DISMISSED_KEY, JSON.stringify([...list, id]))
