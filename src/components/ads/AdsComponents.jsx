@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, ExternalLink, Info, AlertTriangle, CheckCircle2, Zap, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { getAds, getNotifications, getDismissed, dismissNotification } from '@/lib/services'
 import { cn } from '@/lib/utils'
 
 // ─── Color configs ─────────────────────────────────────────────────
@@ -19,24 +18,86 @@ const NOTIF_STYLES = {
   urgent:  { bg: 'bg-red-50',    border: 'border-red-300',    text: 'text-red-900',   icon: Zap,             iconColor: 'text-red-500'    },
 }
 
-// ─── Notification Bar (top of page) ───────────────────────────────
-export function NotificationBar({ page = 'all' }) {
-  const [notifs, setNotifs]       = useState([])
-  const [dismissed, setDismissed] = useState(getDismissed())
+// ─── Dismissed notifications (per browser) ─────────────────────────
+const DISMISSED_KEY = 'dc_dismissed_notifs_v4'
 
-  function loadNotifs() {
-    const all = getNotifications()
-    setNotifs(all.filter(n => n.active && (n.position === 'all' || n.position === page)))
+function getDismissedLocal() {
+  try { return JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]') } catch { return [] }
+}
+
+function dismissLocal(id) {
+  const list = getDismissedLocal()
+  if (!list.includes(id)) {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...list, id]))
   }
+}
+
+// ─── Hook: load ads & notifs dari adsManager (jika ada) atau services ──
+function useAdsConfig() {
+  const [ads, setAds]       = useState([])
+  const [notifs, setNotifs] = useState([])
 
   useEffect(() => {
-    loadNotifs()
-    const sync = () => { loadNotifs(); setDismissed(getDismissed()) }
-    window.addEventListener('dc-notif-changed', sync)
-    return () => window.removeEventListener('dc-notif-changed', sync)
-  }, [page])
+    let mounted = true
+    let unsub = () => {}
 
-  const visible = notifs.filter(n => !dismissed.includes(n.id))
+    async function load() {
+      try {
+        // Coba gunakan adsManager (tersedia setelah file dipasang)
+        const mod = await import('@/lib/adsManager').catch(() => null)
+        if (mod && mounted) {
+          const { ads: a, notifs: n } = await mod.getAdsConfig()
+          if (!mounted) return
+          setAds(a || [])
+          setNotifs(n || [])
+
+          // Subscribe real-time
+          unsub = mod.subscribeAdsConfig(({ ads: newA, notifs: newN }) => {
+            if (!mounted) return
+            setAds(newA || [])
+            setNotifs(newN || [])
+          })
+          return
+        }
+      } catch { /* fallback ke services */ }
+
+      // Fallback: gunakan services.js lama
+      try {
+        const svc = await import('@/lib/services')
+        if (!mounted) return
+        setAds(svc.getAds?.() || [])
+        setNotifs(svc.getNotifications?.() || [])
+
+        // Subscribe event lama
+        const syncAds   = () => { if (mounted) setAds(svc.getAds?.() || []) }
+        const syncNotif = () => { if (mounted) setNotifs(svc.getNotifications?.() || []) }
+        window.addEventListener('dc-ads-changed', syncAds)
+        window.addEventListener('dc-notif-changed', syncNotif)
+        unsub = () => {
+          window.removeEventListener('dc-ads-changed', syncAds)
+          window.removeEventListener('dc-notif-changed', syncNotif)
+        }
+      } catch (e) {
+        console.warn('[AdsComponents] Gagal load ads config:', e)
+      }
+    }
+
+    load()
+    return () => { mounted = false; unsub() }
+  }, [])
+
+  return { ads, notifs }
+}
+
+// ─── Notification Bar (top of page) ───────────────────────────────
+export function NotificationBar({ page = 'all' }) {
+  const { notifs }            = useAdsConfig()
+  const [dismissed, setDismissed] = useState(() => getDismissedLocal())
+
+  const visible = notifs.filter(
+    n => n.active && (n.position === 'all' || n.position === page) && !dismissed.includes(n.id)
+  )
+
   if (!visible.length) return null
 
   return (
@@ -66,7 +127,10 @@ export function NotificationBar({ page = 'all' }) {
                 </div>
                 {notif.dismissable && (
                   <button
-                    onClick={() => { dismissNotification(notif.id); setDismissed(getDismissed()) }}
+                    onClick={() => {
+                      dismissLocal(notif.id)
+                      setDismissed(getDismissedLocal())
+                    }}
                     className="flex-shrink-0 p-0.5 rounded hover:opacity-70 transition-opacity mt-0.5"
                     aria-label="Tutup notifikasi"
                   >
@@ -84,24 +148,24 @@ export function NotificationBar({ page = 'all' }) {
 
 // ─── Banner Ad (horizontal, below header) ─────────────────────────
 export function AdBanner({ page = 'all' }) {
-  const [ad, setAd]             = useState(null)
-  const [closed, setClosed]     = useState(false)
+  const { ads }             = useAdsConfig()
+  const [closed, setClosed]       = useState(false)
+  const [currentAdId, setCurrentAdId] = useState(null)
 
-  function loadAd() {
-    const all = getAds()
-    const match = all.filter(a => a.active && a.type === 'banner' && (a.position === 'all' || a.position === page))
-    setAd(match[0] || null)
-    setClosed(false)
-  }
+  const match = ads.find(
+    a => a.active && a.type === 'banner' && (a.position === 'all' || a.position === page)
+  )
 
+  // Reset "closed" jika iklan berubah (admin update)
   useEffect(() => {
-    loadAd()
-    window.addEventListener('dc-ads-changed', loadAd)
-    return () => window.removeEventListener('dc-ads-changed', loadAd)
-  }, [page])
+    if (match && match.id !== currentAdId) {
+      setCurrentAdId(match.id)
+      setClosed(false)
+    }
+  }, [match?.id])
 
-  if (!ad || closed) return null
-  const c = AD_COLORS[ad.color] || AD_COLORS.blue
+  if (!match || closed) return null
+  const c = AD_COLORS[match.color] || AD_COLORS.blue
 
   return (
     <AnimatePresence>
@@ -115,18 +179,22 @@ export function AdBanner({ page = 'all' }) {
         <div className="container mx-auto px-4 py-2.5 flex items-center gap-3">
           <span className="text-[10px] font-bold uppercase tracking-widest opacity-40 flex-shrink-0">Iklan</span>
           <div className="flex-1 flex items-center gap-2 flex-wrap min-w-0">
-            <span className={cn("font-semibold text-sm truncate", c.text)}>{ad.title}</span>
-            <span className={cn("text-xs hidden sm:block truncate", c.sub)}>{ad.description}</span>
+            <span className={cn("font-semibold text-sm truncate", c.text)}>{match.title}</span>
+            <span className={cn("text-xs hidden sm:block truncate", c.sub)}>{match.description}</span>
           </div>
           <a
-            href={ad.url}
+            href={match.url}
             target="_blank"
             rel="noopener noreferrer nofollow"
             className={cn("flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-white px-3 py-1.5 rounded-lg transition-colors", c.btn)}
           >
-            {ad.cta} <ExternalLink className="w-3 h-3" />
+            {match.cta} <ExternalLink className="w-3 h-3" />
           </a>
-          <button onClick={() => setClosed(true)} className={cn("flex-shrink-0 hover:opacity-60 transition-opacity", c.text)} aria-label="Tutup iklan">
+          <button
+            onClick={() => setClosed(true)}
+            className={cn("flex-shrink-0 hover:opacity-60 transition-opacity", c.text)}
+            aria-label="Tutup iklan"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -137,24 +205,23 @@ export function AdBanner({ page = 'all' }) {
 
 // ─── Card Ad (inline in content) ──────────────────────────────────
 export function AdCard({ page = 'all', className }) {
-  const [ad, setAd]         = useState(null)
-  const [closed, setClosed] = useState(false)
+  const { ads }             = useAdsConfig()
+  const [closed, setClosed]       = useState(false)
+  const [currentAdId, setCurrentAdId] = useState(null)
 
-  function loadAd() {
-    const all = getAds()
-    const match = all.filter(a => a.active && a.type === 'card' && (a.position === 'all' || a.position === page))
-    setAd(match[0] || null)
-    setClosed(false)
-  }
+  const match = ads.find(
+    a => a.active && a.type === 'card' && (a.position === 'all' || a.position === page)
+  )
 
   useEffect(() => {
-    loadAd()
-    window.addEventListener('dc-ads-changed', loadAd)
-    return () => window.removeEventListener('dc-ads-changed', loadAd)
-  }, [page])
+    if (match && match.id !== currentAdId) {
+      setCurrentAdId(match.id)
+      setClosed(false)
+    }
+  }, [match?.id])
 
-  if (!ad || closed) return null
-  const c = AD_COLORS[ad.color] || AD_COLORS.blue
+  if (!match || closed) return null
+  const c = AD_COLORS[match.color] || AD_COLORS.blue
 
   return (
     <AnimatePresence>
@@ -166,7 +233,11 @@ export function AdCard({ page = 'all', className }) {
         className={cn("relative rounded-2xl border-2 p-4", c.bg, c.border, className)}
       >
         <span className="absolute top-2 right-8 text-[9px] font-bold uppercase tracking-widest opacity-30">Iklan</span>
-        <button onClick={() => setClosed(true)} className={cn("absolute top-2 right-2 hover:opacity-60 transition-opacity", c.text)} aria-label="Tutup iklan">
+        <button
+          onClick={() => setClosed(true)}
+          className={cn("absolute top-2 right-2 hover:opacity-60 transition-opacity", c.text)}
+          aria-label="Tutup iklan"
+        >
           <X className="w-3.5 h-3.5" />
         </button>
         <div className="flex items-start gap-3">
@@ -174,15 +245,15 @@ export function AdCard({ page = 'all', className }) {
             <Zap className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0 pr-2">
-            <p className={cn("font-semibold text-sm mb-0.5", c.text)}>{ad.title}</p>
-            <p className={cn("text-xs leading-relaxed mb-2", c.sub)}>{ad.description}</p>
+            <p className={cn("font-semibold text-sm mb-0.5", c.text)}>{match.title}</p>
+            <p className={cn("text-xs leading-relaxed mb-2", c.sub)}>{match.description}</p>
             <a
-              href={ad.url}
+              href={match.url}
               target="_blank"
               rel="noopener noreferrer nofollow"
               className={cn("inline-flex items-center gap-1 text-xs font-bold text-white px-3 py-1.5 rounded-lg transition-colors", c.btn)}
             >
-              {ad.cta} <ExternalLink className="w-3 h-3" />
+              {match.cta} <ExternalLink className="w-3 h-3" />
             </a>
           </div>
         </div>
@@ -193,24 +264,23 @@ export function AdCard({ page = 'all', className }) {
 
 // ─── Inline Ad (between content rows) ─────────────────────────────
 export function AdInline({ page = 'all', className }) {
-  const [ad, setAd]         = useState(null)
-  const [closed, setClosed] = useState(false)
+  const { ads }             = useAdsConfig()
+  const [closed, setClosed]       = useState(false)
+  const [currentAdId, setCurrentAdId] = useState(null)
 
-  function loadAd() {
-    const all = getAds()
-    const match = all.filter(a => a.active && a.type === 'inline' && (a.position === 'all' || a.position === page))
-    setAd(match[0] || null)
-    setClosed(false)
-  }
+  const match = ads.find(
+    a => a.active && a.type === 'inline' && (a.position === 'all' || a.position === page)
+  )
 
   useEffect(() => {
-    loadAd()
-    window.addEventListener('dc-ads-changed', loadAd)
-    return () => window.removeEventListener('dc-ads-changed', loadAd)
-  }, [page])
+    if (match && match.id !== currentAdId) {
+      setCurrentAdId(match.id)
+      setClosed(false)
+    }
+  }, [match?.id])
 
-  if (!ad || closed) return null
-  const c = AD_COLORS[ad.color] || AD_COLORS.blue
+  if (!match || closed) return null
+  const c = AD_COLORS[match.color] || AD_COLORS.blue
 
   return (
     <AnimatePresence>
@@ -222,18 +292,22 @@ export function AdInline({ page = 'all', className }) {
       >
         <span className="text-[9px] font-bold uppercase tracking-widest opacity-30 flex-shrink-0">Iklan</span>
         <div className="flex-1 min-w-0">
-          <span className={cn("font-semibold text-xs", c.text)}>{ad.title} </span>
-          <span className={cn("text-xs opacity-80 hidden sm:inline", c.sub)}>{ad.description}</span>
+          <span className={cn("font-semibold text-xs", c.text)}>{match.title} </span>
+          <span className={cn("text-xs opacity-80 hidden sm:inline", c.sub)}>{match.description}</span>
         </div>
         <a
-          href={ad.url}
+          href={match.url}
           target="_blank"
           rel="noopener noreferrer nofollow"
           className={cn("flex-shrink-0 text-xs font-bold text-white px-2.5 py-1 rounded-lg transition-colors", c.btn)}
         >
-          {ad.cta}
+          {match.cta}
         </a>
-        <button onClick={() => setClosed(true)} className={cn("flex-shrink-0 hover:opacity-60", c.text)} aria-label="Tutup">
+        <button
+          onClick={() => setClosed(true)}
+          className={cn("flex-shrink-0 hover:opacity-60", c.text)}
+          aria-label="Tutup"
+        >
           <X className="w-3.5 h-3.5" />
         </button>
       </motion.div>

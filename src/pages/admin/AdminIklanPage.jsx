@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Megaphone, Bell, Plus, Pencil, Trash2, Eye, EyeOff,
   Save, X, Info, AlertTriangle, CheckCircle2, Zap,
-  ExternalLink, RotateCcw
+  ExternalLink, RotateCcw, Wifi, WifiOff, RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,10 +15,17 @@ import { Textarea } from '@/components/ui/misc'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/misc'
 import { Checkbox } from '@/components/ui/misc'
 import { Separator } from '@/components/ui/misc'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/misc'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
+} from '@/components/ui/misc'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { toast } from '@/components/ui/toast'
-import { getAds, setAds, getNotifications, setNotifications, DEFAULT_ADS, DEFAULT_NOTIFICATIONS } from '@/lib/services'
+import {
+  getAdsConfig, setAdsConfig,
+  subscribeAdsConfig, invalidateAdsCache, isAdsGlobal,
+  DEFAULT_ADS, DEFAULT_NOTIFICATIONS,
+} from '@/lib/adsManager'
 import { cn } from '@/lib/utils'
 
 const PAGE_OPTIONS = [
@@ -51,6 +58,46 @@ const AD_COLORS_CSS = {
 }
 
 function genId(prefix) { return `${prefix}-${Date.now()}` }
+
+// ─── Storage Mode Banner ───────────────────────────────────────────
+function StorageModeBanner({ isGlobal, liveUpdate }) {
+  if (isGlobal) {
+    return (
+      <div className="flex items-start gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+        <Wifi className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+        <div className="text-sm text-emerald-800">
+          <p className="font-semibold mb-0.5">Mode Global — Terhubung ke Supabase</p>
+          <p className="text-emerald-700">
+            Perubahan iklan & notifikasi akan tersimpan di database dan berlaku di{' '}
+            <strong>semua browser dan pengguna</strong> secara real-time.
+          </p>
+        </div>
+        {liveUpdate && (
+          <span className="ml-auto flex-shrink-0 inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-full animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Diperbarui
+          </span>
+        )}
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+      <WifiOff className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+      <div className="text-sm text-amber-800">
+        <p className="font-semibold mb-0.5">Mode Demo — Tanpa Database</p>
+        <p className="text-amber-700 mb-2">
+          Perubahan hanya berlaku di <strong>tab yang sama</strong>. Tab lain di browser yang
+          sama akan sync via BroadcastChannel. Browser lain tidak terpengaruh.
+        </p>
+        <p className="text-amber-600 text-xs">
+          Untuk perubahan global, hubungkan Supabase dan buat tabel{' '}
+          <code className="font-mono bg-amber-100 px-1 rounded">ads_config</code>.
+        </p>
+      </div>
+    </div>
+  )
+}
 
 // ─── Ad Form Dialog ────────────────────────────────────────────────
 const EMPTY_AD = { id: '', title: '', description: '', url: '', cta: 'Pelajari', type: 'banner', position: 'all', active: true, color: 'blue' }
@@ -225,63 +272,194 @@ function NotifDialog({ open, onClose, initial, onSave }) {
   )
 }
 
-// ─── Main Page ─────────────────────────────────────────────────────
+// ─── Supabase SQL setup helper ─────────────────────────────────────
+function SupabaseSQLHelper() {
+  return (
+    <Card className="border-slate-200 mt-4">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Info className="w-4 h-4 text-slate-500" />
+          Cara Membuat Tabel Global (Supabase)
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs text-muted-foreground mb-3">
+          Jalankan SQL berikut di Supabase SQL Editor agar perubahan iklan & notifikasi berlaku global:
+        </p>
+        <pre className="bg-slate-900 text-emerald-400 text-xs p-4 rounded-xl overflow-x-auto leading-relaxed font-mono">
+{`CREATE TABLE ads_config (
+  id            integer PRIMARY KEY DEFAULT 1,
+  ads           jsonb   NOT NULL DEFAULT '[]'::jsonb,
+  notifications jsonb   NOT NULL DEFAULT '[]'::jsonb,
+  updated_at    timestamptz DEFAULT now()
+);
+
+INSERT INTO ads_config (id, ads, notifications)
+VALUES (1, '[]'::jsonb, '[]'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+
+-- Aktifkan RLS
+ALTER TABLE ads_config
+  ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "allow_all" ON ads_config
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Aktifkan Realtime
+ALTER PUBLICATION supabase_realtime
+  ADD TABLE ads_config;`}
+        </pre>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MAIN PAGE
+// ══════════════════════════════════════════════════════════════════
 export default function AdminIklanPage() {
-  const [ads, setAdsState]     = useState([])
-  const [notifs, setNotifsState] = useState([])
-  const [adDialog, setAdDialog]   = useState({ open: false, item: null })
+  const [ads, setAdsState]           = useState([])
+  const [notifs, setNotifsState]     = useState([])
+  const [loading, setLoading]        = useState(true)
+  const [saving, setSaving]          = useState(false)
+  const [liveUpdate, setLiveUpdate]  = useState(false)
+  const [adDialog, setAdDialog]      = useState({ open: false, item: null })
   const [notifDialog, setNotifDialog] = useState({ open: false, item: null })
+  const liveTimer = useRef(null)
+
+  const global = isAdsGlobal()
+
+  // ── Load & subscribe ──
+  async function loadConfig() {
+    setLoading(true)
+    const { ads: a, notifs: n } = await getAdsConfig()
+    setAdsState(a)
+    setNotifsState(n)
+    setLoading(false)
+  }
 
   useEffect(() => {
-    setAdsState(getAds())
-    setNotifsState(getNotifications())
+    loadConfig()
+
+    const unsub = subscribeAdsConfig(({ ads: newAds, notifs: newNotifs }) => {
+      setAdsState(newAds)
+      setNotifsState(newNotifs)
+      setLiveUpdate(true)
+      clearTimeout(liveTimer.current)
+      liveTimer.current = setTimeout(() => setLiveUpdate(false), 3000)
+      toast({
+        title: '🔄 Iklan/Notifikasi Diperbarui',
+        description: 'Perubahan dari sesi lain sudah diterapkan.',
+      })
+    })
+
+    return () => {
+      unsub()
+      clearTimeout(liveTimer.current)
+    }
   }, [])
 
+  // ── Generic save helper ──
+  async function persist(newAds, newNotifs) {
+    setSaving(true)
+    const result = await setAdsConfig(newAds, newNotifs)
+    setSaving(false)
+    if (!result.success) {
+      toast({ title: 'Gagal Menyimpan', description: result.error, variant: 'destructive' })
+      return false
+    }
+    if (result.warning) {
+      toast({ title: '⚠️ Mode Demo', description: result.warning })
+    }
+    return true
+  }
+
   // ── Ads CRUD ──
-  function saveAd(ad) {
+  async function saveAd(ad) {
     const next = ads.find(a => a.id === ad.id)
       ? ads.map(a => a.id === ad.id ? ad : a)
       : [...ads, ad]
-    setAdsState(next); setAds(next)
-    toast({ title: 'Tersimpan', description: 'Iklan berhasil disimpan', variant: 'success' })
+    const ok = await persist(next, notifs)
+    if (ok) {
+      setAdsState(next)
+      toast({ title: 'Tersimpan', description: 'Iklan berhasil disimpan', variant: 'success' })
+    }
   }
-  function deleteAd(id) {
+
+  async function deleteAd(id) {
     const next = ads.filter(a => a.id !== id)
-    setAdsState(next); setAds(next)
-    toast({ title: 'Dihapus', description: 'Iklan berhasil dihapus' })
+    const ok = await persist(next, notifs)
+    if (ok) {
+      setAdsState(next)
+      toast({ title: 'Dihapus', description: 'Iklan berhasil dihapus' })
+    }
   }
-  function toggleAd(id) {
+
+  async function toggleAd(id) {
     const next = ads.map(a => a.id === id ? { ...a, active: !a.active } : a)
-    setAdsState(next); setAds(next)
+    const ok = await persist(next, notifs)
+    if (ok) {
+      setAdsState(next)
+      const ad = next.find(a => a.id === id)
+      toast({
+        title: ad?.active ? '✅ Iklan Diaktifkan' : '🚫 Iklan Dinonaktifkan',
+        description: global ? 'Berlaku untuk semua pengguna.' : 'Berlaku di browser ini.',
+        variant: ad?.active ? 'success' : 'default',
+      })
+    }
   }
 
   // ── Notifs CRUD ──
-  function saveNotif(n) {
+  async function saveNotif(n) {
     const next = notifs.find(x => x.id === n.id)
       ? notifs.map(x => x.id === n.id ? n : x)
       : [...notifs, n]
-    setNotifsState(next); setNotifications(next)
-    toast({ title: 'Tersimpan', description: 'Notifikasi berhasil disimpan', variant: 'success' })
+    const ok = await persist(ads, next)
+    if (ok) {
+      setNotifsState(next)
+      toast({ title: 'Tersimpan', description: 'Notifikasi berhasil disimpan', variant: 'success' })
+    }
   }
-  function deleteNotif(id) {
+
+  async function deleteNotif(id) {
     const next = notifs.filter(n => n.id !== id)
-    setNotifsState(next); setNotifications(next)
-    toast({ title: 'Dihapus', description: 'Notifikasi berhasil dihapus' })
+    const ok = await persist(ads, next)
+    if (ok) {
+      setNotifsState(next)
+      toast({ title: 'Dihapus', description: 'Notifikasi berhasil dihapus' })
+    }
   }
-  function toggleNotif(id) {
+
+  async function toggleNotif(id) {
     const next = notifs.map(n => n.id === id ? { ...n, active: !n.active } : n)
-    setNotifsState(next); setNotifications(next)
+    const ok = await persist(ads, next)
+    if (ok) {
+      setNotifsState(next)
+      const n = next.find(x => x.id === id)
+      toast({
+        title: n?.active ? '✅ Notifikasi Diaktifkan' : '🚫 Notifikasi Dinonaktifkan',
+        description: global ? 'Berlaku untuk semua pengguna.' : 'Berlaku di browser ini.',
+        variant: n?.active ? 'success' : 'default',
+      })
+    }
   }
-  function resetDefaults() {
-    // Hapus cache localStorage termasuk versi, supaya default fresh
-    localStorage.removeItem('dc_ads')
-    localStorage.removeItem('dc_ads_version')
-    localStorage.removeItem('dc_notifications')
-    localStorage.removeItem('dc_notif_version')
-    localStorage.removeItem('dc_dismissed_notifs')
-    setAdsState(DEFAULT_ADS); setAds(DEFAULT_ADS)
-    setNotifsState(DEFAULT_NOTIFICATIONS); setNotifications(DEFAULT_NOTIFICATIONS)
-    toast({ title: 'Reset', description: 'Cache & data dikembalikan ke default. Refresh halaman untuk melihat perubahan.' })
+
+  // ── Reset to default ──
+  async function resetDefaults() {
+    const ok = await persist(DEFAULT_ADS, DEFAULT_NOTIFICATIONS)
+    if (ok) {
+      setAdsState(DEFAULT_ADS)
+      setNotifsState(DEFAULT_NOTIFICATIONS)
+      invalidateAdsCache()
+      toast({ title: 'Reset ke Default', description: 'Iklan & notifikasi dikembalikan ke bawaan.', variant: 'success' })
+    }
+  }
+
+  // ── Refresh manual ──
+  async function handleRefresh() {
+    invalidateAdsCache()
+    await loadConfig()
+    toast({ title: 'Data diperbarui dari server', variant: 'success' })
   }
 
   const activeAds   = ads.filter(a => a.active).length
@@ -299,38 +477,61 @@ export default function AdminIklanPage() {
             Kelola iklan dan notifikasi yang tampil di halaman publik
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={resetDefaults}>
-          <RotateCcw className="w-4 h-4" />Reset Default
-        </Button>
+        <div className="flex items-center gap-2">
+          {liveUpdate && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded-full animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              Diperbarui
+            </span>
+          )}
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleRefresh} disabled={loading || saving}>
+            <RefreshCw className={cn("w-3.5 h-3.5", (loading || saving) && 'animate-spin')} />
+            Refresh
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={resetDefaults} disabled={saving}>
+            <RotateCcw className="w-4 h-4" />Reset Default
+          </Button>
+        </div>
       </div>
+
+      {/* Storage mode banner */}
+      <StorageModeBanner isGlobal={global} liveUpdate={liveUpdate} />
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Iklan',    val: ads.length,    icon: Megaphone, color: 'text-blue-600',   bg: 'bg-blue-50'   },
-          { label: 'Iklan Aktif',    val: activeAds,     icon: Eye,       color: 'text-emerald-600',bg: 'bg-emerald-50'},
-          { label: 'Total Notif',    val: notifs.length, icon: Bell,      color: 'text-purple-600', bg: 'bg-purple-50' },
-          { label: 'Notif Aktif',    val: activeNotif,   icon: CheckCircle2,color:'text-amber-600', bg: 'bg-amber-50'  },
+          { label: 'Total Iklan',    val: ads.length,    icon: Megaphone,    color: 'text-blue-600',   bg: 'bg-blue-50'   },
+          { label: 'Iklan Aktif',    val: activeAds,     icon: Eye,          color: 'text-emerald-600',bg: 'bg-emerald-50'},
+          { label: 'Total Notif',    val: notifs.length, icon: Bell,         color: 'text-purple-600', bg: 'bg-purple-50' },
+          { label: 'Notif Aktif',    val: activeNotif,   icon: CheckCircle2, color: 'text-amber-600',  bg: 'bg-amber-50'  },
         ].map(s => (
           <Card key={s.label} className="border-blue-100/60">
             <CardContent className="p-4">
               <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-2", s.bg)}>
                 <s.icon className={cn("w-4 h-4", s.color)} />
               </div>
-              <p className="font-display font-extrabold text-2xl">{s.val}</p>
+              <p className="font-display font-extrabold text-2xl">{loading ? '—' : s.val}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Saving indicator */}
+      {saving && (
+        <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
+          <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
+          Menyimpan perubahan{global ? ' ke Supabase...' : '...'}
+        </div>
+      )}
+
       <Tabs defaultValue="iklan">
         <TabsList className="mb-5">
           <TabsTrigger value="iklan" className="gap-2">
-            <Megaphone className="w-4 h-4" />Iklan ({ads.length})
+            <Megaphone className="w-4 h-4" />Iklan ({loading ? '…' : ads.length})
           </TabsTrigger>
           <TabsTrigger value="notifikasi" className="gap-2">
-            <Bell className="w-4 h-4" />Notifikasi ({notifs.length})
+            <Bell className="w-4 h-4" />Notifikasi ({loading ? '…' : notifs.length})
           </TabsTrigger>
         </TabsList>
 
@@ -338,78 +539,98 @@ export default function AdminIklanPage() {
         <TabsContent value="iklan">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">Iklan tampil secara halus dan bisa ditutup oleh pengguna</p>
+              <p className="text-sm text-muted-foreground">
+                Iklan tampil secara halus dan bisa ditutup oleh pengguna.
+                {global && ' Aktif/nonaktif berlaku global.'}
+              </p>
               <Button variant="gradient" size="sm" className="gap-2" onClick={() => setAdDialog({ open: true, item: null })}>
                 <Plus className="w-4 h-4" />Tambah Iklan
               </Button>
             </div>
 
-            <AnimatePresence>
-              {ads.map(ad => {
-                const typeLabel = { banner: 'Banner', card: 'Card', inline: 'Inline' }[ad.type] || ad.type
-                const pageLabel = PAGE_OPTIONS.find(p => p.value === ad.position)?.label || ad.position
-                return (
-                  <motion.div key={ad.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}>
-                    <Card className={cn("border transition-all", !ad.active && 'opacity-60 bg-muted/20')}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-4">
-                          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-bold text-white",
-                            { blue:'bg-blue-500', purple:'bg-purple-500', emerald:'bg-emerald-500', amber:'bg-amber-500' }[ad.color] || 'bg-blue-500'
-                          )}>
-                            {ad.type === 'banner' ? '▬' : ad.type === 'card' ? '▪' : '—'}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <span className="font-semibold text-sm">{ad.title}</span>
-                              <Badge variant="secondary" className="text-xs">{typeLabel}</Badge>
-                              <Badge variant="info" className="text-xs">{pageLabel}</Badge>
-                              {ad.active
-                                ? <Badge className="text-xs bg-emerald-100 text-emerald-800">Aktif</Badge>
-                                : <Badge variant="secondary" className="text-xs text-muted-foreground">Nonaktif</Badge>
-                              }
+            {loading ? (
+              <div className="space-y-3">
+                {[1,2,3].map(i => <div key={i} className="h-24 bg-slate-100 rounded-2xl animate-pulse" />)}
+              </div>
+            ) : (
+              <AnimatePresence>
+                {ads.map(ad => {
+                  const typeLabel = { banner: 'Banner', card: 'Card', inline: 'Inline' }[ad.type] || ad.type
+                  const pageLabel = PAGE_OPTIONS.find(p => p.value === ad.position)?.label || ad.position
+                  return (
+                    <motion.div key={ad.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}>
+                      <Card className={cn("border transition-all", !ad.active && 'opacity-60 bg-muted/20')}>
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-4">
+                            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-bold text-white",
+                              { blue:'bg-blue-500', purple:'bg-purple-500', emerald:'bg-emerald-500', amber:'bg-amber-500' }[ad.color] || 'bg-blue-500'
+                            )}>
+                              {ad.type === 'banner' ? '▬' : ad.type === 'card' ? '▪' : '—'}
                             </div>
-                            <p className="text-xs text-muted-foreground truncate">{ad.description}</p>
-                            {ad.url && (
-                              <a href={ad.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5 w-fit">
-                                <ExternalLink className="w-3 h-3" />{ad.url.slice(0, 40)}{ad.url.length > 40 && '...'}
-                              </a>
-                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <span className="font-semibold text-sm">{ad.title}</span>
+                                <Badge variant="secondary" className="text-xs">{typeLabel}</Badge>
+                                <Badge variant="info" className="text-xs">{pageLabel}</Badge>
+                                {ad.active
+                                  ? <Badge className="text-xs bg-emerald-100 text-emerald-800">Aktif</Badge>
+                                  : <Badge variant="secondary" className="text-xs text-muted-foreground">Nonaktif</Badge>
+                                }
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">{ad.description}</p>
+                              {ad.url && (
+                                <a href={ad.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5 w-fit">
+                                  <ExternalLink className="w-3 h-3" />{ad.url.slice(0, 40)}{ad.url.length > 40 && '...'}
+                                </a>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <Button
+                                variant="ghost" size="icon" className="h-8 w-8"
+                                onClick={() => toggleAd(ad.id)}
+                                disabled={saving}
+                                title={ad.active ? 'Nonaktifkan' : 'Aktifkan'}
+                              >
+                                {ad.active ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              </Button>
+                              <Button
+                                variant="ghost" size="icon" className="h-8 w-8 hover:text-primary"
+                                onClick={() => setAdDialog({ open: true, item: ad })}
+                                disabled={saving}
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-red-600" disabled={saving}>
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Hapus Iklan?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Iklan "<strong>{ad.title}</strong>" akan dihapus permanen
+                                      {global && ' dari database dan tidak tampil di semua browser'}.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => deleteAd(ad.id)} className="bg-destructive hover:bg-red-700">Hapus</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleAd(ad.id)}
-                              title={ad.active ? 'Nonaktifkan' : 'Aktifkan'}>
-                              {ad.active ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary" onClick={() => setAdDialog({ open: true, item: ad })}>
-                              <Pencil className="w-3.5 h-3.5" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-red-600">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Hapus Iklan?</AlertDialogTitle>
-                                  <AlertDialogDescription>Iklan "<strong>{ad.title}</strong>" akan dihapus permanen.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => deleteAd(ad.id)} className="bg-destructive hover:bg-red-700">Hapus</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                )
-              })}
-            </AnimatePresence>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
+            )}
 
-            {ads.length === 0 && (
+            {!loading && ads.length === 0 && (
               <div className="text-center py-12 border-2 border-dashed border-blue-200 rounded-2xl">
                 <Megaphone className="w-10 h-10 text-blue-200 mx-auto mb-3" />
                 <p className="text-muted-foreground text-sm">Belum ada iklan. Tambahkan iklan pertama.</p>
@@ -422,73 +643,93 @@ export default function AdminIklanPage() {
         <TabsContent value="notifikasi">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">Notifikasi tampil sebagai bar tipis di atas konten halaman</p>
+              <p className="text-sm text-muted-foreground">
+                Notifikasi tampil sebagai bar tipis di atas konten.
+                {global && ' Aktif/nonaktif berlaku global.'}
+              </p>
               <Button variant="gradient" size="sm" className="gap-2" onClick={() => setNotifDialog({ open: true, item: null })}>
                 <Plus className="w-4 h-4" />Tambah Notifikasi
               </Button>
             </div>
 
-            <AnimatePresence>
-              {notifs.map(n => {
-                const s = NOTIF_STYLE[n.type] || NOTIF_STYLE.info
-                const Icon = s.icon
-                const pageLabel = PAGE_OPTIONS.find(p => p.value === n.position)?.label || n.position
-                return (
-                  <motion.div key={n.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}>
-                    <Card className={cn("border transition-all", !n.active && 'opacity-60 bg-muted/20')}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-4">
-                          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", s.bg)}>
-                            <Icon className={cn("w-5 h-5", s.color)} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <span className="font-semibold text-sm">{n.title}</span>
-                              <Badge variant="secondary" className="text-xs capitalize">{n.type}</Badge>
-                              <Badge variant="info" className="text-xs">{pageLabel}</Badge>
-                              {n.dismissable && <Badge variant="secondary" className="text-xs">Bisa ditutup</Badge>}
-                              {n.active
-                                ? <Badge className="text-xs bg-emerald-100 text-emerald-800">Aktif</Badge>
-                                : <Badge variant="secondary" className="text-xs text-muted-foreground">Nonaktif</Badge>
-                              }
+            {loading ? (
+              <div className="space-y-3">
+                {[1,2,3].map(i => <div key={i} className="h-20 bg-slate-100 rounded-2xl animate-pulse" />)}
+              </div>
+            ) : (
+              <AnimatePresence>
+                {notifs.map(n => {
+                  const s = NOTIF_STYLE[n.type] || NOTIF_STYLE.info
+                  const Icon = s.icon
+                  const pageLabel = PAGE_OPTIONS.find(p => p.value === n.position)?.label || n.position
+                  return (
+                    <motion.div key={n.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}>
+                      <Card className={cn("border transition-all", !n.active && 'opacity-60 bg-muted/20')}>
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-4">
+                            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", s.bg)}>
+                              <Icon className={cn("w-5 h-5", s.color)} />
                             </div>
-                            <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <span className="font-semibold text-sm">{n.title}</span>
+                                <Badge variant="secondary" className="text-xs capitalize">{n.type}</Badge>
+                                <Badge variant="info" className="text-xs">{pageLabel}</Badge>
+                                {n.dismissable && <Badge variant="secondary" className="text-xs">Bisa ditutup</Badge>}
+                                {n.active
+                                  ? <Badge className="text-xs bg-emerald-100 text-emerald-800">Aktif</Badge>
+                                  : <Badge variant="secondary" className="text-xs text-muted-foreground">Nonaktif</Badge>
+                                }
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <Button
+                                variant="ghost" size="icon" className="h-8 w-8"
+                                onClick={() => toggleNotif(n.id)}
+                                disabled={saving}
+                                title={n.active ? 'Nonaktifkan' : 'Aktifkan'}
+                              >
+                                {n.active ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              </Button>
+                              <Button
+                                variant="ghost" size="icon" className="h-8 w-8 hover:text-primary"
+                                onClick={() => setNotifDialog({ open: true, item: n })}
+                                disabled={saving}
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-red-600" disabled={saving}>
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Hapus Notifikasi?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Notifikasi "<strong>{n.title}</strong>" akan dihapus permanen
+                                      {global && ' dari database dan tidak tampil di semua browser'}.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => deleteNotif(n.id)} className="bg-destructive hover:bg-red-700">Hapus</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleNotif(n.id)}
-                              title={n.active ? 'Nonaktifkan' : 'Aktifkan'}>
-                              {n.active ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary" onClick={() => setNotifDialog({ open: true, item: n })}>
-                              <Pencil className="w-3.5 h-3.5" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-red-600">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Hapus Notifikasi?</AlertDialogTitle>
-                                  <AlertDialogDescription>Notifikasi "<strong>{n.title}</strong>" akan dihapus permanen.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => deleteNotif(n.id)} className="bg-destructive hover:bg-red-700">Hapus</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                )
-              })}
-            </AnimatePresence>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
+            )}
 
-            {notifs.length === 0 && (
+            {!loading && notifs.length === 0 && (
               <div className="text-center py-12 border-2 border-dashed border-blue-200 rounded-2xl">
                 <Bell className="w-10 h-10 text-blue-200 mx-auto mb-3" />
                 <p className="text-muted-foreground text-sm">Belum ada notifikasi.</p>
@@ -498,6 +739,10 @@ export default function AdminIklanPage() {
         </TabsContent>
       </Tabs>
 
+      {/* SQL helper (only in mock mode) */}
+      {!global && <SupabaseSQLHelper />}
+
+      {/* Dialogs */}
       <AdDialog open={adDialog.open} onClose={() => setAdDialog({ open: false, item: null })} initial={adDialog.item} onSave={saveAd} />
       <NotifDialog open={notifDialog.open} onClose={() => setNotifDialog({ open: false, item: null })} initial={notifDialog.item} onSave={saveNotif} />
     </div>
